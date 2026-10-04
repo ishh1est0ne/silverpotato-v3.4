@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, MessageSquarePlus, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, MessageSquarePlus, User, Users } from 'lucide-react';
 import { PillButton } from '../ui/PillButton';
 import { InputField } from '../ui/InputField';
-import { ConversationItem } from '@/lib/types';
+import { ConversationItem, UserSummary } from '@/lib/types';
 import { api } from '@/lib/service/apiService';
 import { triggerHaptic } from '@/lib/native';
 
@@ -13,20 +13,40 @@ export interface NewChatModalProps {
   onChatCreated: (conv: ConversationItem) => void;
 }
 
-const SUGGESTED_FRIENDS = ['Друг 2', 'Друг 3', 'Друг 7', 'Алексей', 'Мария'];
-
 export const NewChatModal: React.FC<NewChatModalProps> = ({
   onClose,
   onChatCreated,
 }) => {
   const [friendName, setFriendName] = useState('');
+  const [usersList, setUsersList] = useState<UserSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleStartChat = async (nameToUse: string) => {
-    const trimmed = nameToUse.trim();
-    if (!trimmed) {
-      setError('Укажите имя друга');
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [users, cur] = await Promise.all([
+          api.chat.getUsers(),
+          api.auth.getCurrentUser(),
+        ]);
+        if (!isMounted) return;
+        const filtered = users.filter((u) => u.id !== cur?.id && u.email !== cur?.email);
+        setUsersList(filtered);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleStartChat = async (targetId?: string, targetName?: string) => {
+    const finalName = (targetName || friendName).trim();
+    if (!finalName) {
+      setError('Укажите имя друга или выберите пользователя из списка');
       triggerHaptic('warning');
       return;
     }
@@ -35,7 +55,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
     triggerHaptic('light');
 
     try {
-      const newConv = await api.chat.createConversation(trimmed);
+      const newConv = await api.chat.createConversation(targetId, finalName);
       await triggerHaptic('success');
       onChatCreated(newConv);
       onClose();
@@ -71,43 +91,50 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
           </button>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleStartChat(friendName);
-          }}
-          className="flex flex-col gap-3.5"
-        >
-          <InputField
-            label="Имя собеседника"
-            value={friendName}
-            onChange={(e) => setFriendName(e.target.value)}
-            placeholder="Например: Друг 2 или Alex"
-            leftIcon={<User size={18} />}
-            required
-          />
-
-          {/* Быстрый выбор друзей */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-mono text-stone-400">
-              Быстрый выбор:
+        {/* Список зарегистрированных пользователей */}
+        {usersList.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-[11px] font-mono text-stone-500 font-medium flex items-center gap-1">
+              <Users size={13} className="text-[#5516ea]" /> Пользователи онлайн / в сети:
             </span>
-            <div className="flex flex-wrap gap-1.5">
-              {SUGGESTED_FRIENDS.map((name) => (
+            <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
+              {usersList.map((u) => (
                 <button
-                  key={name}
+                  key={u.id}
                   type="button"
-                  onClick={() => {
-                    triggerHaptic('select');
-                    setFriendName(name);
-                  }}
-                  className="px-2.5 py-1 rounded-full text-xs font-mono bg-purple-50 text-[#5516ea] hover:bg-purple-100 border border-purple-200/50 cursor-pointer transition active:scale-95"
+                  onClick={() => handleStartChat(u.id, u.name)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-2xl bg-purple-50/70 hover:bg-purple-100 border border-purple-200/60 text-left transition cursor-pointer active:scale-[0.98]"
                 >
-                  {name}
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#5516ea] text-white flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-stone-900 leading-none">{u.name}</div>
+                      <div className="text-[10px] font-mono text-stone-400 mt-0.5">{u.email}</div>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#5516ea] font-semibold">Написать →</span>
                 </button>
               ))}
             </div>
           </div>
+        )}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleStartChat(undefined, friendName);
+          }}
+          className="flex flex-col gap-3.5 pt-1 border-t border-stone-100"
+        >
+          <InputField
+            label="Или введите имя вручную"
+            value={friendName}
+            onChange={(e) => setFriendName(e.target.value)}
+            placeholder="Например: Друг или Алексей"
+            leftIcon={<User size={18} />}
+          />
 
           {error && (
             <div className="p-2 rounded-xl bg-rose-50 text-rose-600 text-xs font-mono text-center">
@@ -115,7 +142,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
             </div>
           )}
 
-          <div className="pt-2">
+          <div className="pt-1">
             <PillButton type="submit" isLoading={isLoading} className="w-full">
               Открыть чат
             </PillButton>

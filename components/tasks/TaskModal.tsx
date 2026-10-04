@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TaskItem } from '@/lib/types';
 import { X, Camera, CheckCircle2, Calendar, Clock } from 'lucide-react';
 import { PillButton } from '../ui/PillButton';
@@ -21,6 +21,34 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(task.completedPhotoUrl || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [timerText, setTimerText] = useState<string | null>(() => {
+    if (!task.expiresAt) return null;
+    const diff = new Date(task.expiresAt).getTime() - Date.now();
+    if (diff <= 0) return 'Время вышло';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return hours > 0 ? `${pad(hours)}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`;
+  });
+
+  useEffect(() => {
+    if (!task.expiresAt || task.isCompleted) return;
+    const interval = setInterval(() => {
+      const diff = new Date(task.expiresAt!).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimerText('Время вышло');
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        setTimerText(hours > 0 ? `${pad(hours)}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [task.expiresAt, task.isCompleted]);
 
   // Обработка загрузки или съемки фото с камеры устройства/Capacitor
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,12 +106,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <p className="text-base font-medium text-stone-800 mt-1">
             {task.prompt}
           </p>
-          <div className="flex items-center gap-3 text-xs font-mono text-stone-500 mt-3 pt-2 border-t border-purple-200/50">
+          <div className="flex items-center gap-3 text-xs font-mono text-stone-500 mt-3 pt-2 border-t border-purple-200/50 flex-wrap">
             <span className="flex items-center gap-1">
               <Calendar size={13} /> {task.dateText}
             </span>
-            <span className="flex items-center gap-1 text-amber-700">
-              <Clock size={13} /> {task.deadlineText}
+            <span className="flex items-center gap-1 text-amber-700 font-semibold">
+              <Clock size={13} /> {timerText ? `Осталось: ${timerText}` : task.deadlineText}
             </span>
           </div>
         </div>

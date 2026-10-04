@@ -8,14 +8,17 @@ import { api } from '@/lib/service/apiService';
 
 export interface ForgotPasswordFormProps {
   onNavigateToLogin: () => void;
+  onNavigateToReset?: (token: string) => void;
 }
 
 export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
   onNavigateToLogin,
+  onNavigateToReset,
 }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [demoToken, setDemoToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,8 +31,11 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
     setIsLoading(true);
 
     try {
-      await api.auth.resetPassword(email);
+      const res = await api.auth.resetPassword(email);
       setIsSent(true);
+      if (res?.demoToken) {
+        setDemoToken(res.demoToken);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Не удалось отправить ссылку. Проверьте адрес.';
       setError(message);
@@ -49,9 +55,15 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
           <p className="text-xs font-mono text-stone-500">
             Мы отправили инструкцию по сбросу пароля на адрес <span className="font-bold">{email}</span>.
           </p>
-          <div className="mt-4 w-full">
-            <PillButton onClick={onNavigateToLogin} className="w-full">
-              Back to Sign in
+
+          <div className="mt-4 flex flex-col gap-2 w-full">
+            {demoToken && onNavigateToReset && (
+              <PillButton onClick={() => onNavigateToReset(demoToken)} className="w-full">
+                Ввести новый пароль (Тестовый режим)
+              </PillButton>
+            )}
+            <PillButton variant="outline" onClick={onNavigateToLogin} className="w-full">
+              Вернуться ко входу
             </PillButton>
           </div>
         </div>
@@ -59,7 +71,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
           <InputField
             type="email"
-            placeholder="E-mail"
+            placeholder="Почта (E-mail)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             leftIcon={<Mail size={20} />}
@@ -74,7 +86,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
           <div className="mt-4">
             <PillButton type="submit" isLoading={isLoading} className="w-full">
-              SEND RESET LINK
+              ОТПРАВИТЬ ССЫЛКУ
             </PillButton>
           </div>
 
@@ -84,7 +96,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               onClick={onNavigateToLogin}
               className="text-xs font-mono text-[#5b25e8] hover:underline cursor-pointer"
             >
-              Back to Sign in
+              Вернуться ко входу
             </button>
           </div>
         </form>

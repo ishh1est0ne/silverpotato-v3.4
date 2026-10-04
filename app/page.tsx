@@ -5,6 +5,7 @@ import { AuthLayout } from '@/components/auth/AuthLayout';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignUpForm } from '@/components/auth/SignUpForm';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
+import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 
 import { BottomNav, AppTab } from '@/components/ui/BottomNav';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -19,23 +20,27 @@ import { NewChatModal } from '@/components/chat/NewChatModal';
 
 import { ProfileScreen } from '@/components/profile/ProfileScreen';
 import { NotificationsScreen } from '@/components/notifications/NotificationsScreen';
+import { PostsFeedScreen } from '@/components/posts/PostsFeedScreen';
 
 import { TaskItem, ConversationItem, User } from '@/lib/types';
 import { api } from '@/lib/service/apiService';
-import { triggerHaptic } from '@/lib/native';
-import { Smartphone, Monitor, Plus, MessageSquarePlus } from 'lucide-react';
+import { triggerHaptic, sendLocalPush } from '@/lib/native';
+import { Smartphone, Monitor, Plus, MessageSquarePlus, Zap } from 'lucide-react';
 
 export default function App() {
-  // Режим экрана: авторизация или главное приложение
-  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot' | null>(null);
+  // Режим экрана: авторизация или главное приложение (по умолчанию: Вход / Log In)
+  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot' | 'reset' | null>('login');
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [isDropping, setIsDropping] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Сообщения при успешной регистрации
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
 
-  // Таб навигации
+  // Таб навигации и подрежим заданий (задания дня / лента выполненных постов)
   const [activeTab, setActiveTab] = useState<AppTab>('tasks');
+  const [taskSubView, setTaskSubView] = useState<'tasks' | 'feed'>('tasks');
 
   // Данные заданий
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -74,6 +79,15 @@ export default function App() {
         setCurrentUser(user);
         setTasks(taskList);
         setConversations(convList);
+
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const token = params.get('reset') || params.get('token');
+          if (token) {
+            setResetToken(token);
+            setAuthView('reset');
+          }
+        }
       }
     })();
 
@@ -98,8 +112,38 @@ export default function App() {
     setSelectedTaskForModal(null);
   };
 
-  const handleCommentsUpdated = () => {
-    api.tasks.getTasks(searchQuery).then(setTasks);
+  const handleCommentsUpdated = (taskId?: string) => {
+    if (taskId) {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, commentCount: (t.commentCount || 0) + 1 } : t))
+      );
+    }
+    api.tasks.getTasks(searchQuery).then((fresh) => {
+      setTasks((prev) => {
+        const freshMap = new Map(fresh.map((f) => [f.id, f]));
+        const merged = prev.map((p) => freshMap.get(p.id) || p);
+        for (const f of fresh) {
+          if (!prev.some((p) => p.id === f.id)) merged.unshift(f);
+        }
+        return merged;
+      });
+    });
+  };
+
+  const handleTriggerDrop = async () => {
+    setIsDropping(true);
+    triggerHaptic('medium');
+    try {
+      const dropTask = await api.tasks.triggerDailyDrop(3);
+      await triggerHaptic('success');
+      await sendLocalPush('⚡ Новое задание дня!', dropTask.prompt);
+      setTasks((prev) => [dropTask, ...prev]);
+    } catch (e) {
+      console.error('Ошибка вызова дропа:', e);
+      triggerHaptic('error');
+    } finally {
+      setIsDropping(false);
+    }
   };
 
   const handleOpenChat = (conv: ConversationItem) => {
@@ -118,9 +162,24 @@ export default function App() {
   // Рендер экранов авторизации
   // ==========================================
   const renderAuthScreens = () => {
+    if (authView === 'reset') {
+      return (
+        <AuthLayout title="Новый пароль">
+          <ResetPasswordForm
+            token={resetToken}
+            onDone={() => {
+              setRegistrationNotice('Пароль успешно изменен! Выполните вход.');
+              setAuthView('login');
+            }}
+            onCancel={() => setAuthView('login')}
+          />
+        </AuthLayout>
+      );
+    }
+
     if (authView === 'signup') {
       return (
-        <AuthLayout title="Sign Up">
+        <AuthLayout title="Регистрация">
           <SignUpForm
             onSuccess={(email) => {
               setRegisteredEmail(email);
@@ -138,17 +197,21 @@ export default function App() {
 
     if (authView === 'forgot') {
       return (
-        <AuthLayout title="Forgot password?">
+        <AuthLayout title="Сброс пароля">
           <ForgotPasswordForm
             onNavigateToLogin={() => setAuthView('login')}
+            onNavigateToReset={(token) => {
+              setResetToken(token);
+              setAuthView('reset');
+            }}
           />
         </AuthLayout>
       );
     }
 
-    // По умолчанию: Login (Sign In)
+    // По умолчанию: Login (Вход)
     return (
-      <AuthLayout title="Sign In">
+      <AuthLayout title="Вход">
         <LoginForm
           initialEmail={registeredEmail}
           successNotice={registrationNotice}
@@ -194,53 +257,114 @@ export default function App() {
       <div className="w-full h-full flex flex-col bg-[#5216e8] relative overflow-hidden">
         {/* Скроллируемая область контента */}
         <div className="flex-1 overflow-y-auto pt-[max(0.75rem,env(safe-area-inset-top))] px-4 pb-4">
-          {/* Вкладка 1: Экран Заданий (Figma Screen 14) */}
+          {/* Вкладка 1: Экран Заданий и Ленты постов */}
           {activeTab === 'tasks' && (
-            <div className="flex flex-col gap-4 py-2">
-              {/* Поисковая строка и кнопка добавления задания */}
-              <div className="flex items-center gap-2">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="#имя друга"
-                  className="flex-1"
-                />
+            <div className="flex flex-col gap-3 py-2">
+              {/* Переключатель: Задания / Лента постов */}
+              <div className="flex bg-[#3b0fb3] p-1 rounded-2xl gap-1 shadow-inner">
                 <button
                   type="button"
                   onClick={() => {
                     triggerHaptic('select');
-                    setIsCreateTaskOpen(true);
+                    setTaskSubView('tasks');
                   }}
-                  className="w-12 h-12 bg-white text-[#5216e8] hover:bg-stone-100 rounded-xl shadow-md flex items-center justify-center cursor-pointer transition active:scale-95 shrink-0"
-                  title="Создать задание"
+                  className={`flex-1 py-2 rounded-xl font-mono text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    taskSubView === 'tasks'
+                      ? 'bg-white text-[#5216e8] shadow'
+                      : 'text-stone-300 hover:text-white'
+                  }`}
                 >
-                  <Plus size={24} strokeWidth={2.5} />
+                  <span>🎯 Задания дня</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('select');
+                    setTaskSubView('feed');
+                  }}
+                  className={`flex-1 py-2 rounded-xl font-mono text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    taskSubView === 'feed'
+                      ? 'bg-white text-[#5216e8] shadow'
+                      : 'text-stone-300 hover:text-white'
+                  }`}
+                >
+                  <span>📸 Лента постов</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-sans font-semibold ${
+                      taskSubView === 'feed' ? 'bg-[#5216e8] text-white' : 'bg-white/20 text-stone-200'
+                    }`}
+                  >
+                    {tasks.filter((t) => t.isCompleted && t.completedPhotoUrl).length}
+                  </span>
                 </button>
               </div>
 
-              {/* Список карточек заданий */}
-              <div className="flex flex-col gap-3.5">
-                {tasks.length === 0 ? (
-                  <div className="bg-white/90 rounded-3xl p-6 text-center text-stone-500 font-mono text-sm shadow">
-                    Заданий не найдено
-                  </div>
-                ) : (
-                  tasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onOpenTaskModal={(t) => {
-                        triggerHaptic('select');
-                        setSelectedTaskForModal(t);
-                      }}
-                      onOpenComments={(t) => {
-                        triggerHaptic('select');
-                        setSelectedTaskForComments(t);
-                      }}
+              {taskSubView === 'feed' ? (
+                <PostsFeedScreen
+                  tasks={tasks}
+                  currentUser={currentUser}
+                  onOpenCreateTask={() => setIsCreateTaskOpen(true)}
+                  onCommentsUpdated={handleCommentsUpdated}
+                />
+              ) : (
+                <>
+                  {/* Поисковая строка и кнопка добавления задания */}
+                  <div className="flex items-center gap-2">
+                    <SearchBar
+                      value={searchQuery}
+                      onChange={setSearchQuery}
+                      placeholder="#имя друга"
+                      className="flex-1"
                     />
-                  ))
-                )}
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('select');
+                        setIsCreateTaskOpen(true);
+                      }}
+                      className="w-12 h-12 bg-white text-[#5216e8] hover:bg-stone-100 rounded-xl shadow-md flex items-center justify-center cursor-pointer transition active:scale-95 shrink-0"
+                      title="Создать задание"
+                    >
+                      <Plus size={24} strokeWidth={2.5} />
+                    </button>
+                  </div>
+
+                  {/* Кнопка случайного фото-челленджа дня (BeReal стиль) */}
+                  <button
+                    type="button"
+                    onClick={handleTriggerDrop}
+                    disabled={isDropping}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 hover:brightness-105 active:scale-[0.98] text-stone-900 rounded-2xl font-mono text-xs font-bold shadow-md flex items-center justify-center gap-2 cursor-pointer transition disabled:opacity-50"
+                  >
+                    <Zap size={16} className="fill-stone-900" />
+                    {isDropping ? 'Генерация задания...' : '⚡ Случайный дроп дня (BeReal)'}
+                  </button>
+
+                  {/* Список карточек заданий */}
+                  <div className="flex flex-col gap-3.5">
+                    {tasks.length === 0 ? (
+                      <div className="bg-white/90 rounded-3xl p-6 text-center text-stone-500 font-mono text-sm shadow">
+                        Заданий не найдено
+                      </div>
+                    ) : (
+                      tasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onOpenTaskModal={(t) => {
+                            triggerHaptic('select');
+                            setSelectedTaskForModal(t);
+                          }}
+                          onOpenComments={(t) => {
+                            triggerHaptic('select');
+                            setSelectedTaskForComments(t);
+                          }}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -356,7 +480,7 @@ export default function App() {
               authView === 'login' ? 'bg-[#5516ea] text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
             }`}
           >
-            Sign In
+            Вход
           </button>
           <button
             onClick={() => {
@@ -368,7 +492,7 @@ export default function App() {
               authView === 'signup' ? 'bg-[#5516ea] text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
             }`}
           >
-            Sign Up
+            Регистрация
           </button>
           <button
             onClick={() => {
@@ -387,15 +511,32 @@ export default function App() {
               triggerHaptic('select');
               setAuthView(null);
               setActiveTab('tasks');
+              setTaskSubView('tasks');
               setActiveChat(null);
             }}
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-              !authView && activeTab === 'tasks' && !activeChat
+              !authView && activeTab === 'tasks' && taskSubView === 'tasks' && !activeChat
                 ? 'bg-[#5516ea] text-white'
                 : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
             }`}
           >
-            Задания (14)
+            Задания
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic('select');
+              setAuthView(null);
+              setActiveTab('tasks');
+              setTaskSubView('feed');
+              setActiveChat(null);
+            }}
+            className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
+              !authView && activeTab === 'tasks' && taskSubView === 'feed' && !activeChat
+                ? 'bg-[#5516ea] text-white'
+                : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+            }`}
+          >
+            Лента постов
           </button>
           <button
             onClick={() => {
@@ -410,7 +551,7 @@ export default function App() {
                 : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
             }`}
           >
-            Сообщения (15)
+            Сообщения
           </button>
           <button
             onClick={() => {
@@ -425,7 +566,7 @@ export default function App() {
                 : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
             }`}
           >
-            Чат (16)
+            Чат
           </button>
         </div>
 

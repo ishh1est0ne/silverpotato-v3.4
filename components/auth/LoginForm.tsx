@@ -64,7 +64,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       <InputField
         type="email"
-        placeholder="E-mail"
+        placeholder="Почта (E-mail)"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         leftIcon={<Mail size={20} />}
@@ -73,7 +73,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       <InputField
         type={showPassword ? 'text' : 'password'}
-        placeholder="Password"
+        placeholder="Пароль"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         leftIcon={<Lock size={20} />}
@@ -91,7 +91,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           }}
           className="text-xs font-mono text-[#5b25e8] hover:underline cursor-pointer"
         >
-          Forget Password?
+          Забыли пароль?
         </button>
       </div>
 
@@ -103,7 +103,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       <div className="mt-4">
         <PillButton type="submit" isLoading={isLoading} className="w-full">
-          SIGN IN
+          ВОЙТИ
         </PillButton>
       </div>
 

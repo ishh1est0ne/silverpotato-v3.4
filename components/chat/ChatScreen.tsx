@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ConversationItem, ChatMessage } from '@/lib/types';
 import { ArrowLeft, Send } from 'lucide-react';
-import { api } from '@/lib/service/apiService';
+import { api, isCustomBackendConfigured } from '@/lib/service/apiService';
 import { triggerHaptic, sendLocalPush } from '@/lib/native';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 
@@ -32,7 +32,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     });
 
     const unsubscribe = api.chat.subscribe(conversation.id, (newMsg) => {
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
       if (!newMsg.isOutgoing) {
         triggerHaptic('medium');
         sendLocalPush(conversation.friendName, newMsg.text);
@@ -56,11 +56,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
     try {
       const newMsg = await api.chat.sendMessage(conversation.id, text);
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
       setTimeout(scrollToBottom, 100);
 
-      // В локальном режиме (без Supabase) сымитируем ответ собеседника через 1.5 сек для проверки вибрации и пуша
-      if (!isSupabaseConfigured) {
+      // Только в локальном оффлайн-режиме (без сервера Proxmox и без Supabase) сымитируем ответ для теста
+      if (!isSupabaseConfigured && !isCustomBackendConfigured) {
         setTimeout(async () => {
           const replies = [
             'Круто! Я тоже сейчас выполняю задание.',

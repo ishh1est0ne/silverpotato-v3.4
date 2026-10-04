@@ -58,7 +58,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
       <InputField
         type="text"
-        placeholder="Name"
+        placeholder="Имя"
         value={name}
         onChange={(e) => setName(e.target.value)}
         leftIcon={<UserIcon size={20} />}
@@ -67,7 +67,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
 
       <InputField
         type="email"
-        placeholder="E-mail"
+        placeholder="Почта (E-mail)"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         leftIcon={<Mail size={20} />}
@@ -76,7 +76,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
 
       <InputField
         type={showPassword ? 'text' : 'password'}
-        placeholder="Password"
+        placeholder="Пароль"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         leftIcon={<Lock size={20} />}
@@ -93,7 +93,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
 
       <div className="mt-4">
         <PillButton type="submit" isLoading={isLoading} className="w-full">
-          SIGN UP
+          СОЗДАТЬ АККАУНТ
         </PillButton>
       </div>
 

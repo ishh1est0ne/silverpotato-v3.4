@@ -8,7 +8,7 @@ import { api } from '@/lib/service/apiService';
 export interface CommentsModalProps {
   task: TaskItem;
   onClose: () => void;
-  onCommentsUpdated: () => void;
+  onCommentsUpdated: (taskId?: string) => void;
 }
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({
@@ -30,10 +30,12 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
     setIsLoading(true);
     try {
-      const added = await api.tasks.addComment(task.id, 'Я', newText.trim());
+      const curUser = await api.auth.getCurrentUser();
+      const authorName = curUser?.name || 'Пользователь';
+      const added = await api.tasks.addComment(task.id, authorName, newText.trim());
       setComments((prev) => [...prev, added]);
       setNewText('');
-      onCommentsUpdated();
+      onCommentsUpdated(task.id);
     } catch (err) {
       console.error(err);
     } finally {
@@ -96,7 +98,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             placeholder="Написать комментарий..."
-            className="flex-1 bg-stone-100 rounded-full px-4 py-2 text-xs font-sans focus:outline-none focus:ring-2 focus:ring-[#5516ea]/30"
+            className="flex-1 bg-stone-100 text-stone-900 placeholder-stone-400 rounded-full px-4 py-2.5 text-xs font-sans focus:outline-none focus:ring-2 focus:ring-[#5516ea]/30 transition"
           />
           <button
             type="submit"

@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Sparkles, PlusCircle } from 'lucide-react';
+import { X, Sparkles, PlusCircle, Dices } from 'lucide-react';
 import { PillButton } from '../ui/PillButton';
 import { InputField } from '../ui/InputField';
 import { TaskItem } from '@/lib/types';
-import { api } from '@/lib/service/apiService';
+import { api, PHOTO_CHALLENGES_BANK } from '@/lib/service/apiService';
 import { triggerHaptic, sendLocalPush } from '@/lib/native';
 
 export interface CreateTaskModalProps {
@@ -19,9 +19,23 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 }) => {
   const [title, setTitle] = useState('Задание');
   const [prompt, setPrompt] = useState('');
-  const [deadline, setDeadline] = useState('Выполнение до 30.09');
+  const [durationHours, setDurationHours] = useState(3);
+  const [deadline, setDeadline] = useState('Осталось 3 часа');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleRandomPrompt = () => {
+    triggerHaptic('select');
+    const random = PHOTO_CHALLENGES_BANK[Math.floor(Math.random() * PHOTO_CHALLENGES_BANK.length)];
+    setPrompt(random);
+  };
+
+  const handleSelectDuration = (hours: number) => {
+    triggerHaptic('select');
+    setDurationHours(hours);
+    const hourWord = hours === 1 ? '1 час' : hours < 5 ? `${hours} часа` : `${hours} часов`;
+    setDeadline(`Осталось ${hourWord}`);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +51,13 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     setError(null);
 
     try {
-      const newTask = await api.tasks.createTask(prompt.trim(), deadline.trim(), title.trim());
+      const newTask = await api.tasks.createTask(
+        prompt.trim(),
+        deadline.trim(),
+        title.trim(),
+        'Я',
+        durationHours
+      );
       await triggerHaptic('success');
       await sendLocalPush('Задание опубликовано', `Новое задание: "${prompt}"`);
       onTaskCreated(newTask);
@@ -84,25 +104,50 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           />
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-mono font-medium text-stone-600 px-1">
-              Что нужно сделать? (Челлендж)
-            </label>
+            <div className="flex items-center justify-between px-1">
+              <label className="text-xs font-mono font-medium text-stone-600">
+                Что нужно сделать? (Челлендж)
+              </label>
+              <button
+                type="button"
+                onClick={handleRandomPrompt}
+                className="text-[11px] font-mono text-[#5516ea] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Dices size={13} />
+                Случайная идея
+              </button>
+            </div>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Например: Сфотографируй закат над городом"
+              placeholder="Например: Сфотографируй воду или необычную тень"
               rows={3}
               className="w-full bg-[#f1f1f5] text-stone-800 placeholder-stone-400 font-sans text-sm p-3.5 rounded-2xl border border-stone-200/80 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] focus:outline-none focus:border-[#5b25e8] focus:ring-2 focus:ring-[#5b25e8]/20 transition-all resize-none"
               required
             />
           </div>
 
-          <InputField
-            label="Срок выполнения"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            placeholder="Выполнение до 30.09"
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-mono font-medium text-stone-600 px-1">
+              Таймер выполнения (часов)
+            </label>
+            <div className="flex gap-2">
+              {[1, 3, 6, 24].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => handleSelectDuration(h)}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-mono transition cursor-pointer border ${
+                    durationHours === h
+                      ? 'bg-[#5516ea] text-white border-[#5516ea]'
+                      : 'bg-[#f1f1f5] text-stone-600 hover:bg-stone-200 border-transparent'
+                  }`}
+                >
+                  {h === 1 ? '1 ч' : `${h} ч`}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {error && (
             <div className="p-2 rounded-xl bg-rose-50 text-rose-600 text-xs font-mono text-center">

@@ -11,15 +11,29 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Таблица заданий (постов)
+-- 2. Челленджи / Задания дня со случайным временем и таймером
+CREATE TABLE IF NOT EXISTS public.daily_challenges (
+    id VARCHAR(100) PRIMARY KEY,
+    title VARCHAR(150) NOT NULL DEFAULT 'Задание дня',
+    prompt TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'photo',
+    starts_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Таблица заданий и постов пользователей
 CREATE TABLE IF NOT EXISTS public.tasks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    creator_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    id VARCHAR(100) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    creator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    challenge_id VARCHAR(100) REFERENCES public.daily_challenges(id) ON DELETE SET NULL,
     author_name VARCHAR(100) NOT NULL DEFAULT 'Автор',
     title VARCHAR(150) NOT NULL DEFAULT 'Задание',
     prompt TEXT NOT NULL,
     date_text VARCHAR(100) NOT NULL DEFAULT '',
     deadline_text VARCHAR(100) NOT NULL DEFAULT 'Выполнение до 30.09',
+    expires_at TIMESTAMPTZ,
     is_completed BOOLEAN NOT NULL DEFAULT FALSE,
     comment_count INT NOT NULL DEFAULT 0,
     completed_photo_url TEXT,
@@ -27,19 +41,22 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Таблица комментариев к заданиям
+-- 4. Таблица комментариев к заданиям
 CREATE TABLE IF NOT EXISTS public.task_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE,
+    task_id VARCHAR(100) REFERENCES public.tasks(id) ON DELETE CASCADE,
     author_name VARCHAR(100) NOT NULL,
     text TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Таблица диалогов (чатов)
+-- 5. Таблица диалогов (чатов)
 CREATE TABLE IF NOT EXISTS public.conversations (
     id VARCHAR(100) PRIMARY KEY,
-    friend_name VARCHAR(100) NOT NULL,
+    user1_id TEXT,
+    user2_id TEXT,
+    friend_id TEXT,
+    friend_name VARCHAR(100) NOT NULL DEFAULT '',
     last_message TEXT DEFAULT '',
     date_text VARCHAR(100) NOT NULL DEFAULT '',
     time_text VARCHAR(100) NOT NULL DEFAULT '',
@@ -47,9 +64,9 @@ CREATE TABLE IF NOT EXISTS public.conversations (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Таблица сообщений
+-- 6. Таблица сообщений
 CREATE TABLE IF NOT EXISTS public.messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(100) PRIMARY KEY DEFAULT gen_random_uuid()::text,
     chat_id VARCHAR(100) NOT NULL,
     sender_id TEXT NOT NULL,
     sender_name VARCHAR(100) NOT NULL,
@@ -64,16 +81,18 @@ CREATE TABLE IF NOT EXISTS public.messages (
 -- ========================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
 
 -- ========================================================
 -- ПРАВА ДОСТУПА (Row Level Security / RLS)
--- Разрешаем чтение и добавление для авторизованных пользователей
 -- ========================================================
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_challenges ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Allow public read challenges" ON public.daily_challenges FOR SELECT USING (true);
 CREATE POLICY "Allow public read tasks" ON public.tasks FOR SELECT USING (true);
 CREATE POLICY "Allow insert tasks" ON public.tasks FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow update tasks" ON public.tasks FOR UPDATE USING (true);

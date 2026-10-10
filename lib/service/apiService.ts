@@ -2,7 +2,8 @@ import { io, Socket } from 'socket.io-client';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { User, TaskItem, TaskComment, ConversationItem, ChatMessage, AppNotification, UserSummary } from '../types';
 
-export const customApiUrl = process.env.NEXT_PUBLIC_API_URL;
+export const customApiUrl =
+  process.env.NEXT_PUBLIC_API_URL || 'http://100.102.28.78:4000';
 export const isCustomBackendConfigured = Boolean(
   customApiUrl && customApiUrl.startsWith('http')
 );

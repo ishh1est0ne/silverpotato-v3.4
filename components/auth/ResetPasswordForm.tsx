@@ -8,7 +8,6 @@ import { api } from '@/lib/service/apiService';
 import { triggerHaptic } from '@/lib/native';
 
 export interface ResetPasswordFormProps {
-  /** Токен из ссылки. null: режим Supabase, где сессия восстановления уже есть */
   token: string | null;
   onDone: () => void;
   onCancel: () => void;
@@ -73,7 +72,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
       />
 
       {error && (
-        <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-mono text-center">
+        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-mono text-center border border-rose-200 dark:border-rose-900/50">
           {error}
         </div>
       )}
@@ -88,7 +87,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         <button
           type="button"
           onClick={onCancel}
-          className="text-xs font-mono text-[#5b25e8] hover:underline cursor-pointer"
+          className="text-xs font-mono text-[#5b25e8] dark:text-purple-400 hover:underline cursor-pointer"
         >
           Вернуться ко входу
         </button>

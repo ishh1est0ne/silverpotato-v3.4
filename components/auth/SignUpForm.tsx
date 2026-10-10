@@ -5,7 +5,6 @@ import { User as UserIcon, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { InputField } from '../ui/InputField';
 import { PillButton } from '../ui/PillButton';
 import { api } from '@/lib/service/apiService';
-
 import { triggerHaptic } from '@/lib/native';
 
 export interface SignUpFormProps {
@@ -58,7 +57,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
       <InputField
         type="text"
-        placeholder="Имя"
+        placeholder="Ваше имя"
         value={name}
         onChange={(e) => setName(e.target.value)}
         leftIcon={<UserIcon size={20} />}
@@ -76,7 +75,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
 
       <InputField
         type={showPassword ? 'text' : 'password'}
-        placeholder="Пароль"
+        placeholder="Пароль (от 6 символов)"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         leftIcon={<Lock size={20} />}
@@ -86,7 +85,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
       />
 
       {error && (
-        <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-mono text-center">
+        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-mono text-center border border-rose-200 dark:border-rose-900/50">
           {error}
         </div>
       )}
@@ -104,9 +103,9 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
             triggerHaptic('select');
             onNavigateToLogin();
           }}
-          className="text-xs font-mono text-stone-500 hover:text-[#5516ea] transition cursor-pointer"
+          className="text-xs font-mono text-stone-500 dark:text-stone-400 hover:text-[#5516ea] dark:hover:text-purple-400 transition cursor-pointer"
         >
-          Уже есть аккаунт? <span className="font-semibold text-[#5516ea]">Войти</span>
+          Уже есть аккаунт? <span className="font-semibold text-[#5516ea] dark:text-purple-400">Войти</span>
         </button>
       </div>
     </form>

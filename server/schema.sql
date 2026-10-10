@@ -8,9 +8,19 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
     avatar_url TEXT,
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    daily_tasks_count INT DEFAULT 0,
+    daily_tasks_date VARCHAR(20) DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Безопасные миграции для существующих таблиц
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_tasks_count INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_tasks_date VARCHAR(20) DEFAULT '';
 
 -- 2. Токены сброса пароля (срок действия 1 час)
 CREATE TABLE IF NOT EXISTS password_resets (
@@ -41,14 +51,21 @@ CREATE TABLE IF NOT EXISTS tasks (
     author_name VARCHAR(100) NOT NULL DEFAULT 'Автор',
     prompt TEXT NOT NULL,
     date_text VARCHAR(100) NOT NULL DEFAULT '',
-    deadline_text VARCHAR(100) NOT NULL DEFAULT 'Выполнение до 30.09',
+    deadline_text VARCHAR(100) NOT NULL DEFAULT 'Дедлайн 10 минут',
     expires_at TIMESTAMP,
     is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    is_failed BOOLEAN NOT NULL DEFAULT FALSE,
+    penalty VARCHAR(100),
+    source_type VARCHAR(20) DEFAULT 'system',
     comment_count INT NOT NULL DEFAULT 0,
     completed_photo_url TEXT,
     completed_at VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_failed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS penalty VARCHAR(100);
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_type VARCHAR(20) DEFAULT 'system';
 
 -- 5. Комментарии к заданиям
 CREATE TABLE IF NOT EXISTS task_comments (
@@ -84,8 +101,13 @@ CREATE TABLE IF NOT EXISTS messages (
     text TEXT NOT NULL,
     photo_url TEXT,
     time_text VARCHAR(50) NOT NULL DEFAULT '',
+    status VARCHAR(20) NOT NULL DEFAULT 'delivered', -- 'sending', 'delivered', 'read'
+    read_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'delivered';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMP;
 
 -- Индексы для быстрой выборки сообщений и задач
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);

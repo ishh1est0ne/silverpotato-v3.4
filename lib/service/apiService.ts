@@ -35,131 +35,43 @@ export const PHOTO_CHALLENGES_BANK = [
   'Сфотографируй дверь или вход в здание',
   'Сфоткай самый старый предмет в твоей комнате',
   'Сфотографируй свою искреннюю улыбку',
+  'Сфотографируй любой круглый предмет в комнате',
+  'Сфоткай лестницу или ступеньки',
+  'Сфотографируй уличный фонарь или настольную лампу',
+  'Сфоткай свой рюкзак или сумку',
+  'Сфотографируй провод, зарядку или кабель',
+  'Сфоткай номер ближайшей машины или табличку с номером дома',
+  'Сфотографируй текстуру дерева или коры',
+  'Сфотографируй монетку или купюру',
+  'Сфоткай открытую форточку или балкон',
+  'Сфотографируй любимую футболку или худи',
+  'Сфотографируй спортивный инвентарь или кроссовки',
+  'Сфоткай то, что лежит у тебя в левом кармане',
+  'Сфотографируй упаковку любого продукта на кухне',
+  'Сфоткай что-то металлическое с отражением',
+  'Сфотографируй свои наушники на поверхности',
 ];
 
-// Начальные данные для локального режима
+// Начальные данные для локального режима (чистый профиль для новых пользователей)
 const INITIAL_TASKS: TaskItem[] = [
   {
-    id: 'task-daily-1',
+    id: 'task-admin-initial',
     title: '⚡ Задание дня',
-    authorName: 'Система',
-    dateText: 'Сегодня',
-    prompt: 'Сфотографируй воду (стакан, река, лужа или капли)',
-    isCompleted: false,
-    deadlineText: 'Осталось 3 часа',
-    expiresAt: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
-    commentCount: 2,
-  },
-  {
-    id: 'task-feed-1',
-    title: 'Задание',
-    authorName: 'Мария',
-    dateText: 'Сегодня',
-    prompt: 'Сфотографируй воду (стакан, река, лужа или капли)',
-    isCompleted: true,
-    deadlineText: 'Выполнено',
-    commentCount: 2,
-    completedPhotoUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=800&auto=format&fit=crop&q=80',
-    completedAt: 'Сегодня, 11:15',
-  },
-  {
-    id: 'task-2',
-    title: 'Задание',
-    authorName: 'Алексей',
-    dateText: '20 сентября 2026',
-    prompt: 'Сфоткай дорогу или улицу перед собой',
-    isCompleted: true,
-    deadlineText: 'Выполнено',
-    commentCount: 2,
-    completedPhotoUrl: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800&auto=format&fit=crop&q=80',
-    completedAt: '20.09.2026, 14:30',
-  },
-  {
-    id: 'task-feed-2',
-    title: 'Задание',
-    authorName: 'Дмитрий',
-    dateText: '20 сентября 2026',
-    prompt: 'Сфотографируй небо прямо сейчас над собой',
+    authorName: 'admin',
+    dateText: 'Вчера',
+    prompt: 'Сфотографируй закат или вечернее небо',
     isCompleted: true,
     deadlineText: 'Выполнено',
     commentCount: 1,
     completedPhotoUrl: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&auto=format&fit=crop&q=80',
-    completedAt: '20.09.2026, 18:45',
-  },
-  {
-    id: 'task-1',
-    title: 'Задание',
-    authorName: 'Дмитрий',
-    dateText: '20 сентября 2026',
-    prompt: 'Сфотографируй небо прямо сейчас над собой',
-    isCompleted: false,
-    deadlineText: 'Выполнение до 21.09',
-    commentCount: 4,
-  },
-  {
-    id: 'task-3',
-    title: 'Задание',
-    authorName: 'Мария',
-    dateText: '20 сентября 2026',
-    prompt: 'Сфотографируй что-то ярко-красное вокруг тебя',
-    isCompleted: false,
-    deadlineText: 'Выполнение до 24.09',
-    commentCount: 0,
+    completedAt: 'Вчера, 19:40',
   },
 ];
 
-const INITIAL_CONVERSATIONS: ConversationItem[] = [
-  {
-    id: 'conv-1',
-    friendId: 'user-1',
-    friendName: 'Друг 1',
-    dateText: 'Сегодня',
-    timeText: '13:20',
-    lastMessage: 'Привет! Уже сдал фото-задание?',
-    unread: false,
-  },
-  {
-    id: 'conv-2',
-    friendId: 'user-5',
-    friendName: 'Друг 5',
-    dateText: 'Вчера',
-    timeText: '19:00',
-    lastMessage: 'Ты спишь?',
-    unread: true,
-  },
-  {
-    id: 'conv-3',
-    friendId: 'user-12',
-    friendName: 'Друг 12',
-    dateText: '12 сентября',
-    timeText: '15:40',
-    lastMessage: 'Что делаешь?',
-    unread: false,
-  },
-];
+const INITIAL_CONVERSATIONS: ConversationItem[] = [];
 
-const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
-  'conv-1': [
-    {
-      id: 'm1',
-      chatId: 'conv-1',
-      senderId: 'user-1',
-      senderName: 'Друг 1',
-      text: 'Привет! Уже сдал фото-задание?',
-      timeText: '12:00',
-      isOutgoing: false,
-    },
-    {
-      id: 'm2',
-      chatId: 'conv-1',
-      senderId: 'current-user',
-      senderName: 'Я',
-      text: 'Привет! Сейчас как раз фоткаю воду)',
-      timeText: '12:02',
-      isOutgoing: true,
-    },
-  ],
-};
+const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {};
+
 
 const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
@@ -685,6 +597,52 @@ export const api = {
       return dropTask;
     },
 
+    // Взять задание досрочно самому (максимум 2 раза в день)
+    async takeSelfTask(): Promise<TaskItem> {
+      if (isCustomBackendConfigured) {
+        const res = await safeFetchJson<TaskItem>(`${customApiUrl}/api/tasks/take-self`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+        if (res.ok && res.data) return res.data;
+        throw new Error(res.error || 'Не удалось взять задание');
+      }
+
+      const randomPrompt = PHOTO_CHALLENGES_BANK[Math.floor(Math.random() * PHOTO_CHALLENGES_BANK.length)];
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+      const deadlineText = `Дедлайн 10 минут (до ${new Date(expiresAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`;
+
+      const selfTask: TaskItem = {
+        id: `task-self-${Date.now()}`,
+        title: '⚡ Досрочное задание',
+        authorName: 'Я',
+        dateText: 'Сегодня',
+        prompt: randomPrompt,
+        isCompleted: false,
+        isFailed: false,
+        deadlineText,
+        expiresAt,
+        sourceType: 'self',
+        commentCount: 0,
+      };
+
+      const localTasks = LocalStore.get<TaskItem[]>('app_tasks', INITIAL_TASKS);
+      LocalStore.set('app_tasks', [selfTask, ...localTasks]);
+      return selfTask;
+    },
+
+    // Мгновенное завершение дедлайна администратором
+    async expireTaskNow(taskId: string): Promise<void> {
+      if (isCustomBackendConfigured) {
+        const res = await safeFetchJson<{ ok: boolean }>(`${customApiUrl}/api/admin/tasks/${taskId}/expire-now`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) throw new Error(res.error || 'Ошибка завершения дедлайна');
+      }
+    },
+
     async submitTaskProof(taskId: string, photoDataUrl: string): Promise<TaskItem> {
       const now = new Date();
       const timeStr = `${now.toLocaleDateString('ru-RU')}, ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
@@ -1082,8 +1040,32 @@ export const api = {
       return newMsg;
     },
 
-    // Подписка на сообщения: через Socket.io для Proxmox, Realtime для Supabase, EventListener для локала
-    subscribe(chatId: string, callback: (msg: ChatMessage) => void): () => void {
+    // Пометить сообщения в чате прочитанными
+    async markConversationRead(chatId: string): Promise<void> {
+      if (isCustomBackendConfigured) {
+        await safeFetchJson(`${customApiUrl}/api/conversations/${chatId}/read`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+      }
+    },
+
+    // Оповестить сервер об онлайне пользователя
+    announceOnline(user: User): void {
+      if (isCustomBackendConfigured && user) {
+        const socket = getSocket();
+        if (socket) {
+          socket.emit('user_online', { userId: user.id, userName: user.name });
+        }
+      }
+    },
+
+    // Подписка на сообщения и статусы прочтения
+    subscribe(
+      chatId: string,
+      callback: (msg: ChatMessage) => void,
+      onMessagesRead?: () => void
+    ): () => void {
       // 1. Proxmox Socket.io
       if (isCustomBackendConfigured) {
         const socket = getSocket();
@@ -1098,11 +1080,19 @@ export const api = {
             }
           };
 
+          const readHandler = (data: { chatId: string }) => {
+            if (data.chatId === chatId && onMessagesRead) {
+              onMessagesRead();
+            }
+          };
+
           socket.on('new_message', messageHandler);
+          socket.on('messages_read', readHandler);
 
           return () => {
             socket.emit('leave_chat', chatId);
             socket.off('new_message', messageHandler);
+            socket.off('messages_read', readHandler);
           };
         }
       }
@@ -1127,6 +1117,7 @@ export const api = {
                 text: row.text,
                 photoUrl: row.photo_url,
                 timeText: new Date(row.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+                status: row.status || 'delivered',
                 isOutgoing,
               });
             }

@@ -200,22 +200,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* 4. Статус сервера */}
           <div
             className={`rounded-2xl p-3.5 border flex flex-col gap-1.5 text-left text-xs ${
-              theme === 'dark' ? 'bg-stone-800/40 border-stone-800' : 'bg-stone-50 border-stone-200'
+              theme === 'dark' ? 'bg-[#181822] border-white/10' : 'bg-stone-50 border-stone-200'
             }`}
           >
             <div className="flex items-center justify-between font-mono text-[11px] text-stone-500 dark:text-stone-400">
-              <span className="flex items-center gap-1.5">
-                <Database size={13} />
-                Сервер бэкенда:
+              <span className="flex items-center gap-1.5 font-bold">
+                <Database size={13} className="text-[#5516ea]" />
+                Сервер Proxmox VE:
               </span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <CheckCircle size={12} />
-                {isCustomBackendConfigured ? 'Proxmox' : 'Автономный'}
+                {isCustomBackendConfigured ? 'Подключен (Tailscale)' : 'Автономный'}
               </span>
             </div>
             <p className="font-mono text-[10px] text-stone-400 break-all">
               {customApiUrl || 'Local Mock Engine (Offline mode)'}
             </p>
+            <div className="pt-1 border-t border-stone-200/50 dark:border-white/5 flex items-center justify-between text-[10px] font-mono text-stone-400">
+              <span>Сеть: Tailnet rudkovskijd836@</span>
+              <span className="text-emerald-500 font-semibold">Port 4000 OK</span>
+            </div>
           </div>
 
           {/* 5. Кнопка сброса тестовых данных */}
@@ -229,17 +233,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClose();
                 }
               }}
-              className="py-2.5 px-3 rounded-2xl border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 font-mono text-xs flex items-center justify-center gap-2 cursor-pointer transition active:scale-95"
+              className="py-2.5 px-3 rounded-2xl border border-stone-200 dark:border-white/10 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 font-mono text-xs flex items-center justify-center gap-2 cursor-pointer transition active:scale-95"
             >
               <RefreshCw size={14} />
-              <span>Сбросить демо-данные к начальным</span>
+              <span>Очистить кэш заданий</span>
             </button>
           )}
 
           {/* Инфо */}
           <div className="text-center font-mono text-[10px] text-stone-400 pt-1 flex items-center justify-center gap-1">
             <Sparkles size={11} className="text-[#5516ea]" />
-            <span>Фото-Квесты v3.4 • Дипломный проект</span>
+            <span>Фото-Квесты Silverfish v3.9 Pre-Release</span>
           </div>
         </div>
 

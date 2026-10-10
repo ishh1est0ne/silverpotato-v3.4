@@ -9,9 +9,9 @@ export interface AuthLayoutProps {
 
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title }) => {
   return (
-    <div className="relative w-full min-h-screen bg-white text-stone-900 flex flex-col justify-between overflow-hidden select-none">
-      {/* Верхний декоративный органический градиент (Top-Right Wave) */}
-      <div className="absolute top-0 right-0 w-[80%] max-w-[340px] h-[220px] pointer-events-none z-0">
+    <div className="relative w-full h-full bg-white dark:bg-[#0c0c10] text-stone-900 dark:text-stone-100 flex flex-col justify-between overflow-hidden select-none transition-colors duration-200">
+      {/* Верхний декоративный градиент */}
+      <div className="absolute top-0 right-0 w-[80%] max-w-[340px] h-[220px] pointer-events-none z-0 opacity-90">
         <svg
           viewBox="0 0 300 200"
           fill="none"
@@ -33,8 +33,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title }) => {
         </svg>
       </div>
 
-      {/* Нижний декоративный органический градиент (Bottom-Left Circle/Wave) */}
-      <div className="absolute bottom-0 left-0 w-[70%] max-w-[280px] h-[200px] pointer-events-none z-0">
+      {/* Нижний декоративный градиент */}
+      <div className="absolute bottom-0 left-0 w-[70%] max-w-[280px] h-[200px] pointer-events-none z-0 opacity-90">
         <svg
           viewBox="0 0 280 200"
           fill="none"
@@ -57,12 +57,15 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title }) => {
       </div>
 
       {/* Основной контент */}
-      <div className="relative z-10 w-full max-w-sm mx-auto flex-1 flex flex-col justify-center px-8 py-16">
-        <h1 className="font-mono text-3xl font-medium tracking-wider text-center text-stone-900 mb-8">
-          {title}
-        </h1>
+      <div className="relative z-10 w-full max-w-sm mx-auto flex-1 flex flex-col justify-center px-8 py-10 animate-fade-in">
+        <div className="mb-6">
+          <h1 className="font-bold text-3xl font-mono text-stone-900 dark:text-stone-100 uppercase tracking-wider">
+            {title}
+          </h1>
+          <div className="w-12 h-1 bg-[#5b25e8] dark:bg-purple-500 rounded-full mt-2" />
+        </div>
 
-        <div className="w-full">{children}</div>
+        {children}
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -18,6 +20,9 @@ const PORT = process.env.PORT || 4000;
 // Разрешаем CORS для мобильных устройств, Capacitor и браузера
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '25mb' }));
+
+// Раздача статического лендинг-сайта
+app.use(express.static(path.join(__dirname, 'public')));
 
 const io = new Server(server, {
   cors: {
@@ -31,7 +36,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:secretpassword@localhost:5432/maniyak',
 });
 
-// 20 случайных креативных заданий «на фото» (BeReal-стиль)
+// Карта онлайн-пользователей: userId -> { socketId, userName, lastSeen }
+const onlineUsers = new Map();
+
+// Расширенный банк 35 разнообразных заданий (BeReal-стиль)
 const PHOTO_CHALLENGES = [
   'Сфотографируй воду (стакан, река, лужа или капли)',
   'Сфотографируй небо прямо сейчас над собой',
@@ -53,144 +61,132 @@ const PHOTO_CHALLENGES = [
   'Сфотографируй дверь или вход в здание',
   'Сфоткай самый старый предмет в твоей комнате',
   'Сфотографируй свою искреннюю улыбку',
+  'Сфотографируй любой круглый предмет в комнате',
+  'Сфоткай лестницу или ступеньки',
+  'Сфотографируй уличный фонарь или настольную лампу',
+  'Сфоткай свой рюкзак или сумку',
+  'Сфотографируй провод, зарядку или кабель',
+  'Сфоткай номер ближайшей машины или табличку с номером дома',
+  'Сфотографируй текстуру дерева или коры',
+  'Сфотографируй монетку или купюру',
+  'Сфоткай открытую форточку или балкон',
+  'Сфотографируй любимую футболку или худи',
+  'Сфотографируй спортивный инвентарь или кроссовки',
+  'Сфоткай то, что лежит у тебя в левом кармане',
+  'Сфотографируй упаковку любого продукта на кухне',
+  'Сфоткай что-то металлическое с отражением',
+  'Сфотографируй свои наушники на поверхности',
 ];
 
-// Инициализация структуры таблиц базы данных
+// 1. Инициализация структуры таблиц базы данных и миграции
 async function initDb() {
   try {
-    const fs = require('fs');
-    const path = require('path');
     const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     await pool.query(schema);
     console.log('✅ PostgreSQL таблицы успешно инициализированы');
+    await cleanLegacyAndSetupAdmin();
+    await checkExpiredTasks();
     await ensureInitialChallenge();
-    await ensureInitialTasks();
   } catch (err) {
     console.warn('⚠️ Подключение к базе PostgreSQL:', err.message);
   }
 }
 initDb();
 
-async function ensureInitialTasks() {
+// 2. Очистка старых фейковых чатов и создание аккуратного аккаунта admin
+async function cleanLegacyAndSetupAdmin() {
   try {
-    const tasksCount = await pool.query('SELECT COUNT(*) FROM tasks');
-    if (parseInt(tasksCount.rows[0].count, 10) <= 1) {
-      console.log('🌱 Инициализация демонстрационных заданий и постов в базе данных...');
-      const initialSeedTasks = [
-        {
-          id: 'task-daily-1',
-          title: '⚡ Задание дня',
-          author_name: 'Система',
-          date_text: 'Сегодня',
-          prompt: 'Сфотографируй воду (стакан, река, лужа или капли)',
-          is_completed: false,
-          deadline_text: 'Осталось 3 часа',
-          expires_at: new Date(Date.now() + 3 * 3600 * 1000),
-          comment_count: 2,
-        },
-        {
-          id: 'task-feed-1',
-          title: 'Задание',
-          author_name: 'Мария',
-          date_text: 'Сегодня',
-          prompt: 'Сфотографируй воду (стакан, река, лужа или капли)',
-          is_completed: true,
-          deadline_text: 'Выполнено',
-          comment_count: 2,
-          completed_photo_url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=800&auto=format&fit=crop&q=80',
-          completed_at: 'Сегодня, 11:15',
-        },
-        {
-          id: 'task-2',
-          title: 'Задание',
-          author_name: 'Алексей',
-          date_text: '20 сентября 2026',
-          prompt: 'Сфоткай дорогу или улицу перед собой',
-          is_completed: true,
-          deadline_text: 'Выполнено',
-          comment_count: 2,
-          completed_photo_url: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800&auto=format&fit=crop&q=80',
-          completed_at: '20.09.2026, 14:30',
-        },
-        {
-          id: 'task-feed-2',
-          title: 'Задание',
-          author_name: 'Дмитрий',
-          date_text: '20 сентября 2026',
-          prompt: 'Сфотографируй небо прямо сейчас над собой',
-          is_completed: true,
-          deadline_text: 'Выполнено',
-          comment_count: 1,
-          completed_photo_url: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&auto=format&fit=crop&q=80',
-          completed_at: '20.09.2026, 18:45',
-        },
-        {
-          id: 'task-1',
-          title: 'Задание',
-          author_name: 'Дмитрий',
-          date_text: '20 сентября 2026',
-          prompt: 'Сфотографируй небо прямо сейчас над собой',
-          is_completed: false,
-          deadline_text: 'Выполнение до 21.09',
-          comment_count: 4,
-        },
-        {
-          id: 'task-3',
-          title: 'Задание',
-          author_name: 'Мария',
-          date_text: '20 сентября 2026',
-          prompt: 'Сфотографируй что-то ярко-красное вокруг тебя',
-          is_completed: false,
-          deadline_text: 'Выполнение до 24.09',
-          comment_count: 0,
-        },
-      ];
+    // Удаляем непристойные демо-чаты и старые мусорные тестовые записи
+    await pool.query(`
+      DELETE FROM conversations 
+      WHERE friend_name ILIKE '%чмошник%' 
+         OR friend_name ILIKE '%пидорас%'
+         OR last_message ILIKE '%дура%';
+    `);
 
-      for (const t of initialSeedTasks) {
-        await pool.query(
-          `INSERT INTO tasks (id, title, author_name, prompt, date_text, deadline_text, expires_at, is_completed, comment_count, completed_photo_url, completed_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           ON CONFLICT (id) DO NOTHING`,
-          [
-            t.id,
-            t.title,
-            t.author_name,
-            t.prompt,
-            t.date_text,
-            t.deadline_text,
-            t.expires_at || null,
-            t.is_completed,
-            t.comment_count,
-            t.completed_photo_url || null,
-            t.completed_at || null,
-          ]
-        );
-      }
+    // Проверяем наличие аккаунта admin
+    const adminCheck = await pool.query("SELECT * FROM users WHERE email = 'admin' OR name = 'admin'");
+    let adminId = null;
+
+    if (adminCheck.rows.length === 0) {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash('admin', salt);
+      const res = await pool.query(
+        `INSERT INTO users (name, email, password_hash, role)
+         VALUES ('admin', 'admin', $1, 'admin') RETURNING id`,
+        [hash]
+      );
+      adminId = res.rows[0].id;
+      console.log('👑 Создан чистый аккаунт администратора: admin / admin');
+    } else {
+      adminId = adminCheck.rows[0].id;
+      // Убедимся, что роль установлена в admin
+      await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [adminId]);
     }
-  } catch (e) {
-    console.debug('Initial tasks seed notice:', e.message);
+
+    // Проверяем, есть ли хотя бы одно аккуратное выполненное задание у администратора (полу-полный профиль)
+    const adminTaskCheck = await pool.query('SELECT id FROM tasks WHERE user_id = $1', [adminId]);
+    if (adminTaskCheck.rows.length === 0) {
+      const now = new Date();
+      const dateText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+      await pool.query(
+        `INSERT INTO tasks (id, user_id, title, author_name, prompt, date_text, deadline_text, is_completed, comment_count, completed_photo_url, completed_at)
+         VALUES ($1, $2, '⚡ Задание дня', 'admin', 'Сфотографируй закат или вечернее небо', $3, 'Выполнено', true, 1, $4, $5)`,
+        [
+          `task-admin-${Date.now()}`,
+          adminId,
+          dateText,
+          'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&auto=format&fit=crop&q=80',
+          'Вчера, 19:40',
+        ]
+      );
+    }
+  } catch (err) {
+    console.debug('Legacy cleanup notice:', err.message);
   }
 }
 
-// Генерация или проверка активного челленджа дня с таймером
+// 3. Проверка просроченных дедлайнов (штраф за опоздание)
+async function checkExpiredTasks() {
+  try {
+    const expired = await pool.query(`
+      UPDATE tasks 
+      SET is_failed = true, penalty = '-50 очков (штраф за дедлайн)' 
+      WHERE expires_at < NOW() AND is_completed = false AND is_failed = false 
+      RETURNING id, title, author_name
+    `);
+
+    if (expired.rows.length > 0) {
+      for (const row of expired.rows) {
+        io.emit('task_expired', { taskId: row.id, penalty: '-50 очков' });
+      }
+    }
+  } catch (err) {
+    console.debug('Task expiration check notice:', err.message);
+  }
+}
+setInterval(checkExpiredTasks, 30 * 1000); // каждые 30 секунд
+
+// Генерация или проверка активного челленджа дня с 10-минутным таймером
 async function ensureInitialChallenge() {
   try {
     const active = await pool.query(
       'SELECT * FROM daily_challenges WHERE is_active = true AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1'
     );
     if (active.rows.length === 0) {
-      await generateNewChallenge(3); // Челлендж на 3 часа
+      await generateNewChallenge(10); // 10 минут дедлайн
     }
   } catch (e) {
     console.debug('Challenge check notice:', e.message);
   }
 }
 
-async function generateNewChallenge(durationHours = 3) {
+// Создание нового задания с таймером на durationMinutes (по умолчанию: 10 минут)
+async function generateNewChallenge(durationMinutes = 10) {
   const randomPrompt = PHOTO_CHALLENGES[Math.floor(Math.random() * PHOTO_CHALLENGES.length)];
   const id = `ch-${Date.now()}`;
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+  const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
 
   // Снимаем активность с предыдущих
   await pool.query('UPDATE daily_challenges SET is_active = false WHERE is_active = true');
@@ -201,13 +197,12 @@ async function generateNewChallenge(durationHours = 3) {
     [id, randomPrompt, now, expiresAt]
   );
 
-  // Также создаем пост в tasks для ленты
   const dateText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const deadlineText = `До ${expiresAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+  const deadlineText = `Дедлайн 10 минут (до ${expiresAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`;
 
   await pool.query(
-    `INSERT INTO tasks (id, challenge_id, title, author_name, prompt, date_text, deadline_text, expires_at, is_completed, comment_count)
-     VALUES ($1, $2, 'Задание дня', 'Система', $3, $4, $5, $6, false, 0)`,
+    `INSERT INTO tasks (id, challenge_id, title, author_name, prompt, date_text, deadline_text, expires_at, is_completed, is_failed, comment_count)
+     VALUES ($1, $2, 'Задание дня', 'Система', $3, $4, $5, $6, false, false, 0)`,
     [`task-${id}`, id, randomPrompt, dateText, deadlineText, expiresAt]
   );
 
@@ -221,26 +216,26 @@ async function generateNewChallenge(durationHours = 3) {
     deadlineText,
     expiresAt: expiresAt.toISOString(),
     isCompleted: false,
+    isFailed: false,
     commentCount: 0,
   };
 
-  const challenge = res.rows[0];
   io.emit('new_challenge', taskObj);
-  return challenge;
+  return res.rows[0];
 }
 
-// Автоматическая генерация случайного задания каждые 15 минут
+// Автоматический дроп задания каждые 15 минут
 const DROP_INTERVAL_MS = 15 * 60 * 1000;
 setInterval(async () => {
   try {
-    console.log('⏰ [15 мин] Автоматическая публикация нового фото-задания дня...');
-    await generateNewChallenge(1); // Челлендж с таймером на 1 час
+    console.log('⏰ [15 мин] Автоматическая публикация фото-задания дня (дедлайн 10 мин)...');
+    await generateNewChallenge(10);
   } catch (err) {
-    console.warn('Ошибка таймера 15-минутного дропа:', err.message);
+    console.warn('Ошибка таймера дропа:', err.message);
   }
 }, DROP_INTERVAL_MS);
 
-// Middleware аутентификации по JWT
+// Middleware аутентификации JWT
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -260,30 +255,11 @@ function authenticateToken(req, res, next) {
   });
 }
 
-function requireAuth(req, res, next) {
-  authenticateToken(req, res, () => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Требуется авторизация' });
-    }
-    next();
-  });
-}
-
-// Настройка почтового сервиса (SMTP опционален)
-const mailer = process.env.SMTP_HOST
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    })
-  : null;
-
 // ==========================================
 // 1. АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ
 // ==========================================
 
-// Регистрация с хешированием пароля через bcrypt
+// Регистрация
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -307,50 +283,66 @@ app.post('/api/auth/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, name, email',
+      "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'user') RETURNING id, name, email, role",
       [name.trim(), cleanEmail, passwordHash]
     );
 
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, {
-      expiresIn: '30d',
-    });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, name: user.name, role: user.role || 'user' },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
-    res.json({ user: { id: String(user.id), name: user.name, email: user.email }, token });
+    res.json({
+      user: { id: String(user.id), name: user.name, email: user.email, role: user.role || 'user' },
+      token,
+    });
   } catch (err) {
     console.error('Ошибка регистрации:', err);
     res.status(500).json({ error: 'Ошибка сервера при регистрации' });
   }
 });
 
-// Вход с проверкой bcrypt хеша
+// Вход (поддерживает email или логин admin)
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Введите почту и пароль' });
+    return res.status(400).json({ error: 'Введите логин/почту и пароль' });
   }
 
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanLogin = email.trim().toLowerCase();
 
   try {
-    const check = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
+    const check = await pool.query('SELECT * FROM users WHERE email = $1 OR name = $1', [cleanLogin]);
     if (check.rows.length === 0) {
-      return res.status(401).json({ error: 'Неверная почта или пароль' });
+      return res.status(401).json({ error: 'Неверный логин/почта или пароль' });
     }
 
     const user = check.rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
-      return res.status(401).json({ error: 'Неверная почта или пароль' });
+      return res.status(401).json({ error: 'Неверный логин/почта или пароль' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, {
-      expiresIn: '30d',
-    });
+    // Обновляем время последней активности
+    await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, name: user.name, role: user.role || 'user' },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     res.json({
-      user: { id: String(user.id), name: user.name, email: user.email },
+      user: {
+        id: String(user.id),
+        name: user.name,
+        email: user.email,
+        role: user.role || 'user',
+        avatarUrl: user.avatar_url,
+      },
       token,
     });
   } catch (err) {
@@ -359,22 +351,39 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Текущий профиль
+// Текущий профиль пользователя
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   if (!req.user) {
     return res.json({ user: null });
   }
   try {
-    const found = await pool.query('SELECT id, name, email, avatar_url FROM users WHERE id = $1', [req.user.id]);
+    const found = await pool.query(
+      'SELECT id, name, email, avatar_url, role, daily_tasks_count, daily_tasks_date, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
     if (found.rows.length === 0) return res.json({ user: null });
     const u = found.rows[0];
-    res.json({ user: { id: String(u.id), name: u.name, email: u.email, avatarUrl: u.avatar_url } });
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const takenToday = u.daily_tasks_date === todayStr ? u.daily_tasks_count : 0;
+
+    res.json({
+      user: {
+        id: String(u.id),
+        name: u.name,
+        email: u.email,
+        role: u.role || 'user',
+        avatarUrl: u.avatar_url,
+        createdAt: u.created_at,
+        dailyTasksTakenToday: takenToday,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Запрос сброса пароля (с отправкой email через SMTP или демо-токеном)
+// Сброс пароля (запрос)
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Укажите почту' });
@@ -396,27 +405,14 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       expiresAt,
     ]);
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const link = `${frontendUrl}/?reset=${token}`;
-
-    if (mailer) {
-      await mailer.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: cleanEmail,
-        subject: 'Восстановление пароля — Фото-Квесты',
-        text: `Для сброса пароля перейдите по ссылке: ${link}\nСсылка действительна 1 час.`,
-      });
-      return res.json({ sent: true });
-    }
-
-    console.log(`🔑 [ДЕМО СБРОС] Ссылка сброса для ${cleanEmail}: ${link}`);
-    res.json({ sent: false, demoToken: token });
+    console.log(`🔑 [СБРОС ПАРОЛЯ] Токен для ${cleanEmail}: ${token}`);
+    res.json({ sent: true, demoToken: token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Подтверждение сброса пароля с сохранением bcrypt-хеша
+// Подтверждение сброса пароля
 app.post('/api/auth/reset-password', async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password || password.length < 6) {
@@ -445,15 +441,35 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-// Список других пользователей (для начала переписки с другом)
+// Список пользователей в сети и поиск (БЕЗ почты для безопасности!)
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     const currentId = req.user ? req.user.id : -1;
     const result = await pool.query(
-      'SELECT id, name, email, avatar_url FROM users WHERE id != $1 ORDER BY name ASC',
+      'SELECT id, name, avatar_url, role, last_seen FROM users WHERE id != $1 ORDER BY name ASC',
       [currentId]
     );
-    res.json(result.rows.map(u => ({ id: String(u.id), name: u.name, email: u.email, avatarUrl: u.avatar_url })));
+
+    const usersList = result.rows.map((u) => {
+      const isOnline = onlineUsers.has(String(u.id));
+      let lastSeenText = 'недавно';
+      if (isOnline) {
+        lastSeenText = 'в сети';
+      } else if (u.last_seen) {
+        lastSeenText = new Date(u.last_seen).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      return {
+        id: String(u.id),
+        name: u.name,
+        avatarUrl: u.avatar_url,
+        role: u.role || 'user',
+        isOnline,
+        lastSeenText,
+      };
+    });
+
+    res.json(usersList);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -463,14 +479,14 @@ app.get('/api/users', authenticateToken, async (req, res) => {
 // 2. ЗАДАНИЯ И ЧЕЛЛЕНДЖИ ДНЯ
 // ==========================================
 
-// Получить активный челлендж дня
+// Активный челлендж дня
 app.get('/api/challenges/active', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM daily_challenges WHERE is_active = true AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1'
     );
     if (result.rows.length === 0) {
-      const newCh = await generateNewChallenge(3);
+      const newCh = await generateNewChallenge(10);
       return res.json(newCh);
     }
     res.json(result.rows[0]);
@@ -479,18 +495,109 @@ app.get('/api/challenges/active', async (req, res) => {
   }
 });
 
-// Принудительно сгенерировать случайное задание дня (для тестов/демо)
+// Ручной триггер дропа
 app.post('/api/challenges/trigger-drop', async (req, res) => {
   try {
-    const duration = req.body.durationHours || 3;
-    const challenge = await generateNewChallenge(duration);
+    const challenge = await generateNewChallenge(10);
     res.json(challenge);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Список банка заданий
+// Досрочное взятие задания пользователем (максимум 2 раза в день)
+app.post('/api/tasks/take-self', authenticateToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Необходимо войти в аккаунт' });
+  }
+
+  const userId = req.user.id;
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  try {
+    const uRes = await pool.query('SELECT daily_tasks_count, daily_tasks_date, name FROM users WHERE id = $1', [userId]);
+    if (uRes.rows.length === 0) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    const user = uRes.rows[0];
+    let currentCount = user.daily_tasks_date === todayStr ? user.daily_tasks_count : 0;
+
+    if (currentCount >= 2) {
+      return res.status(400).json({
+        error: 'Лимит на сегодня исчерпан. Доступно максимум 2 досрочных задания в сутки.',
+      });
+    }
+
+    currentCount += 1;
+    await pool.query(
+      'UPDATE users SET daily_tasks_count = $1, daily_tasks_date = $2 WHERE id = $3',
+      [currentCount, todayStr, userId]
+    );
+
+    const randomPrompt = PHOTO_CHALLENGES[Math.floor(Math.random() * PHOTO_CHALLENGES.length)];
+    const taskId = `task-self-${Date.now()}`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 минут
+    const dateText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const deadlineText = `Дедлайн 10 минут (до ${expiresAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })})`;
+
+    await pool.query(
+      `INSERT INTO tasks (id, user_id, title, author_name, prompt, date_text, deadline_text, expires_at, source_type, is_completed, is_failed, comment_count)
+       VALUES ($1, $2, '⚡ Досрочное задание', $3, $4, $5, $6, $7, 'self', false, false, 0)`,
+      [taskId, userId, user.name, randomPrompt, dateText, deadlineText, expiresAt]
+    );
+
+    const newTask = {
+      id: taskId,
+      userId: String(userId),
+      title: '⚡ Досрочное задание',
+      authorName: user.name,
+      prompt: randomPrompt,
+      dateText,
+      deadlineText,
+      expiresAt: expiresAt.toISOString(),
+      sourceType: 'self',
+      isCompleted: false,
+      isFailed: false,
+      commentCount: 0,
+      remainingTakesToday: 2 - currentCount,
+    };
+
+    io.emit('new_task', newTask);
+    res.json(newTask);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Админское досрочное завершение дедлайна (ускорение)
+app.post('/api/admin/tasks/:id/expire-now', authenticateToken, async (req, res) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Только администратор может завершить дедлайн' });
+  }
+
+  const { id } = req.params;
+  try {
+    const updated = await pool.query(
+      `UPDATE tasks 
+       SET expires_at = NOW() - INTERVAL '1 second', 
+           is_failed = true, 
+           penalty = '-50 очков (штраф за дедлайн)' 
+       WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ error: 'Задание не найдено' });
+    }
+
+    io.emit('task_expired', { taskId: id, penalty: '-50 очков' });
+    res.json({ ok: true, task: updated.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Банк заданий
 app.get('/api/challenges/bank', (req, res) => {
   res.json(PHOTO_CHALLENGES);
 });
@@ -506,7 +613,7 @@ app.get('/api/tasks', async (req, res) => {
       params = [`%${q}%`];
     }
     const result = await pool.query(query, params);
-    const tasks = result.rows.map(r => ({
+    const tasks = result.rows.map((r) => ({
       id: r.id,
       title: r.title,
       authorName: r.author_name,
@@ -516,6 +623,9 @@ app.get('/api/tasks', async (req, res) => {
       deadlineText: r.deadline_text,
       expiresAt: r.expires_at ? r.expires_at.toISOString() : undefined,
       isCompleted: r.is_completed,
+      isFailed: r.is_failed,
+      penalty: r.penalty,
+      sourceType: r.source_type || 'system',
       commentCount: r.comment_count,
       completedPhotoUrl: r.completed_photo_url,
       completedAt: r.completed_at,
@@ -527,33 +637,42 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// Создать задание/пост
+// Создать задание/пост вручную
 app.post('/api/tasks', authenticateToken, async (req, res) => {
-  const { title, prompt, deadlineText, authorName, durationHours } = req.body;
+  const { title, prompt, deadlineText, authorName } = req.body;
   const id = `task-${Date.now()}`;
   const now = new Date();
   const dateText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const expiresAt = durationHours ? new Date(now.getTime() + durationHours * 3600 * 1000) : null;
-  const finalAuthor = req.user ? req.user.name : (authorName || 'Я');
-  const userId = req.user ? req.user.id : null;
+  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 минут
+  const author = req.user ? req.user.name : authorName || 'Я';
 
   try {
     await pool.query(
-      `INSERT INTO tasks (id, user_id, title, author_name, prompt, date_text, deadline_text, expires_at, is_completed, comment_count)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, 0)`,
-      [id, userId, title || 'Задание', finalAuthor, prompt, dateText, deadlineText || 'Выполнение до конца дня', expiresAt]
+      `INSERT INTO tasks (id, user_id, title, author_name, prompt, date_text, deadline_text, expires_at, is_completed, is_failed, comment_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, false, 0)`,
+      [
+        id,
+        req.user ? req.user.id : null,
+        title || 'Задание',
+        author,
+        prompt,
+        dateText,
+        deadlineText || 'Дедлайн 10 минут',
+        expiresAt,
+      ]
     );
 
     const newTask = {
       id,
-      userId: userId ? String(userId) : undefined,
+      userId: req.user ? String(req.user.id) : undefined,
       title: title || 'Задание',
-      authorName: finalAuthor,
+      authorName: author,
       prompt,
       dateText,
-      deadlineText: deadlineText || 'Выполнение до конца дня',
-      expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
+      deadlineText: deadlineText || 'Дедлайн 10 минут',
+      expiresAt: expiresAt.toISOString(),
       isCompleted: false,
+      isFailed: false,
       commentCount: 0,
     };
 
@@ -564,7 +683,7 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
   }
 });
 
-// Сдача фото-отчета по заданию
+// Сдать фото-подтверждение задания (из камеры или галереи)
 app.post('/api/tasks/:id/proof', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { photoDataUrl } = req.body;
@@ -573,30 +692,24 @@ app.post('/api/tasks/:id/proof', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `UPDATE tasks SET is_completed = true, completed_photo_url = $1, completed_at = $2 WHERE id = $3 RETURNING *`,
+      `UPDATE tasks 
+       SET is_completed = true, is_failed = false, completed_photo_url = $1, completed_at = $2 
+       WHERE id = $3 RETURNING *`,
       [photoDataUrl, timeStr, id]
     );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Задание не найдено' });
     }
-    const updated = result.rows[0];
-    const taskObj = {
-      id: updated.id,
-      title: updated.title,
-      authorName: updated.author_name,
-      userId: updated.user_id ? String(updated.user_id) : undefined,
-      prompt: updated.prompt,
-      dateText: updated.date_text,
-      deadlineText: updated.deadline_text,
-      expiresAt: updated.expires_at ? updated.expires_at.toISOString() : undefined,
-      isCompleted: updated.is_completed,
-      commentCount: updated.comment_count,
-      completedPhotoUrl: updated.completed_photo_url,
-      completedAt: updated.completed_at,
-    };
 
-    io.emit('task_updated', taskObj);
-    res.json(taskObj);
+    const updatedTask = result.rows[0];
+    io.emit('task_completed', {
+      taskId: id,
+      completedPhotoUrl: photoDataUrl,
+      completedAt: timeStr,
+    });
+
+    res.json(updatedTask);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -607,13 +720,7 @@ app.get('/api/tasks/:id/comments', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('SELECT * FROM task_comments WHERE task_id = $1 ORDER BY created_at ASC', [id]);
-    res.json(result.rows.map(r => ({
-      id: String(r.id),
-      taskId: r.task_id,
-      authorName: r.author_name,
-      text: r.text,
-      createdAt: new Date(r.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-    })));
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -622,45 +729,23 @@ app.get('/api/tasks/:id/comments', async (req, res) => {
 app.post('/api/tasks/:id/comments', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { authorName, text } = req.body;
-  const finalAuthor = req.user ? req.user.name : (authorName || 'Я');
-  const userId = req.user ? req.user.id : null;
+  const author = req.user ? req.user.name : authorName || 'Я';
 
   try {
-    // Если задание отсутствует в таблице tasks (например демо или клиентское), создаем запись
-    const taskCheck = await pool.query('SELECT id FROM tasks WHERE id = $1', [id]);
-    if (taskCheck.rows.length === 0) {
-      await pool.query(
-        `INSERT INTO tasks (id, title, author_name, prompt, date_text, deadline_text, is_completed, comment_count)
-         VALUES ($1, 'Задание', $2, 'Фото задание', 'Сегодня', 'Выполнено', false, 0)
-         ON CONFLICT (id) DO NOTHING`,
-        [id, finalAuthor]
-      );
-    }
-
     const insert = await pool.query(
       'INSERT INTO task_comments (task_id, user_id, author_name, text) VALUES ($1, $2, $3, $4) RETURNING *',
-      [id, userId, finalAuthor, text]
+      [id, req.user ? req.user.id : null, author, text]
     );
     await pool.query('UPDATE tasks SET comment_count = comment_count + 1 WHERE id = $1', [id]);
-
-    const comm = insert.rows[0];
-    const commentObj = {
-      id: String(comm.id),
-      taskId: comm.task_id,
-      authorName: comm.author_name,
-      text: comm.text,
-      createdAt: new Date(comm.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    io.emit('new_comment', commentObj);
-    res.json(commentObj);
+    io.emit('new_comment', insert.rows[0]);
+    res.json(insert.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // ==========================================
-// 3. ДИАЛОГИ И ПЕРЕПИСКА МЕЖДУ ДВУМЯ УСТРОЙСТВАМИ
+// 3. ДИАЛОГИ И ПЕРЕПИСКА 1-НА-1
 // ==========================================
 
 // Список диалогов для текущего пользователя
@@ -671,11 +756,12 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
       result = await pool.query(
         `SELECT c.*,
                 u1.name as u1_name, u1.id as u1_id,
-                u2.name as u2_name, u2.id as u2_id
+                u2.name as u2_name, u2.id as u2_id,
+                (SELECT COUNT(*) FROM messages m WHERE m.chat_id = c.id AND m.status != 'read' AND m.sender_id != $1) as unread_count
          FROM conversations c
          LEFT JOIN users u1 ON c.user1_id = u1.id
          LEFT JOIN users u2 ON c.user2_id = u2.id
-         WHERE c.user1_id = $1 OR c.user2_id = $1 OR (c.user1_id IS NULL AND c.user2_id IS NULL)
+         WHERE c.user1_id = $1 OR c.user2_id = $1
          ORDER BY c.updated_at DESC`,
         [req.user.id]
       );
@@ -683,7 +769,7 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
       result = await pool.query('SELECT * FROM conversations ORDER BY updated_at DESC');
     }
 
-    const convs = result.rows.map(r => {
+    const convs = result.rows.map((r) => {
       let friendName = r.friend_name;
       let friendId = r.friend_id || 'friend-unknown';
 
@@ -706,7 +792,8 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
         lastMessage: r.last_message,
         dateText: r.date_text,
         timeText: r.time_text,
-        unread: false,
+        unread: parseInt(r.unread_count || 0, 10) > 0,
+        unreadCount: parseInt(r.unread_count || 0, 10),
       };
     });
 
@@ -716,18 +803,17 @@ app.get('/api/conversations', authenticateToken, async (req, res) => {
   }
 });
 
-// Создать или открыть существующий диалог с пользователем
+// Создать или открыть существующий диалог между 2 пользователями
 app.post('/api/conversations', authenticateToken, async (req, res) => {
   const { friendId, friendName } = req.body;
   const currentUserId = req.user ? req.user.id : null;
   const friendIdNum = friendId && !isNaN(Number(friendId)) ? Number(friendId) : null;
 
   try {
-    // Если оба пользователя известны, проверяем существующий диалог
     if (currentUserId && friendIdNum) {
       const existing = await pool.query(
-        `SELECT * FROM conversations
-         WHERE (user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)
+        `SELECT * FROM conversations 
+         WHERE (user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1) 
          LIMIT 1`,
         [currentUserId, friendIdNum]
       );
@@ -777,6 +863,30 @@ app.post('/api/conversations', authenticateToken, async (req, res) => {
   }
 });
 
+// Пометить сообщения в чате как прочитанные
+app.post('/api/conversations/:chatId/read', authenticateToken, async (req, res) => {
+  const { chatId } = req.params;
+  const currentUserId = req.user ? req.user.id : null;
+
+  try {
+    if (currentUserId) {
+      await pool.query(
+        "UPDATE messages SET status = 'read', read_at = NOW() WHERE chat_id = $1 AND sender_id != $2 AND status != 'read'",
+        [chatId, currentUserId]
+      );
+    } else {
+      await pool.query("UPDATE messages SET status = 'read', read_at = NOW() WHERE chat_id = $1 AND status != 'read'", [
+        chatId,
+      ]);
+    }
+
+    io.to(`chat_${chatId}`).emit('messages_read', { chatId, readerId: currentUserId });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Сообщения диалога
 app.get('/api/messages/:chatId', authenticateToken, async (req, res) => {
   const { chatId } = req.params;
@@ -784,16 +894,19 @@ app.get('/api/messages/:chatId', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query('SELECT * FROM messages WHERE chat_id = $1 ORDER BY created_at ASC', [chatId]);
-    res.json(result.rows.map(r => ({
-      id: r.id,
-      chatId: r.chat_id,
-      senderId: String(r.sender_id),
-      senderName: r.sender_name,
-      text: r.text,
-      photoUrl: r.photo_url,
-      timeText: r.time_text,
-      isOutgoing: currentUserId ? r.sender_id === currentUserId : r.sender_name === 'Я',
-    })));
+    res.json(
+      result.rows.map((r) => ({
+        id: r.id,
+        chatId: r.chat_id,
+        senderId: String(r.sender_id),
+        senderName: r.sender_name,
+        text: r.text,
+        photoUrl: r.photo_url,
+        timeText: r.time_text,
+        status: r.status || 'delivered', // 'sending', 'delivered', 'read'
+        isOutgoing: currentUserId ? r.sender_id === currentUserId : r.sender_name === 'Я',
+      }))
+    );
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -807,12 +920,12 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
   const timeText = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
   const senderId = req.user ? req.user.id : 1;
-  const senderName = req.user ? req.user.name : (req.body.senderName || 'Я');
+  const senderName = req.user ? req.user.name : req.body.senderName || 'Я';
 
   try {
     await pool.query(
-      `INSERT INTO messages (id, chat_id, sender_id, sender_name, text, photo_url, time_text)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO messages (id, chat_id, sender_id, sender_name, text, photo_url, time_text, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'delivered')`,
       [id, chatId, senderId, senderName, text, photoUrl, timeText]
     );
 
@@ -829,10 +942,10 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       text,
       photoUrl,
       timeText,
+      status: 'delivered',
       isOutgoing: true,
     };
 
-    // Отправляем всем участникам комнаты в Socket.io в реальном времени!
     io.to(`chat_${chatId}`).emit('new_message', message);
     io.emit('conversation_updated', { chatId, lastMessage: text, timeText });
 
@@ -843,10 +956,23 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// 4. SOCKET.IO REALTIME
+// 4. SOCKET.IO REALTIME & ONLINE TRACKING
 // ==========================================
 io.on('connection', (socket) => {
   console.log('🔌 Клиент подключен:', socket.id);
+
+  // Регистрация онлайна пользователя
+  socket.on('user_online', ({ userId, userName }) => {
+    if (userId) {
+      onlineUsers.set(String(userId), {
+        socketId: socket.id,
+        userName,
+        lastSeen: new Date(),
+      });
+      socket.userId = String(userId);
+      io.emit('online_users_updated', Array.from(onlineUsers.keys()));
+    }
+  });
 
   socket.on('join_chat', (chatId) => {
     socket.join(`chat_${chatId}`);
@@ -859,21 +985,25 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('🔌 Клиент отключился:', socket.id);
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      io.emit('online_users_updated', Array.from(onlineUsers.keys()));
+    }
   });
 });
 
-// 404 handler в формате JSON (чтобы клиенты не получали HTML <!DOCTYPE>)
-app.use((req, res) => {
+// Обработчик ошибок в формате JSON для API
+app.use('/api', (req, res) => {
   res.status(404).json({ error: `Маршрут ${req.method} ${req.url} не найден на сервере` });
 });
 
-// Глобальный обработчик ошибок в формате JSON
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Глобальный обработчик ошибок
 app.use((err, req, res, next) => {
   console.error('Необработанная ошибка сервера:', err);
   res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Сервер фото-квестов и чата успешно запущен на http://0.0.0.0:${PORT}`);
+  console.log(`🚀 Сервер фото-квестов успешно запущен на http://0.0.0.0:${PORT}`);
+  console.log(`🌐 Лендинг веб-сайта доступен на http://0.0.0.0:${PORT}/`);
 });

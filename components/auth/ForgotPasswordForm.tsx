@@ -47,19 +47,19 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
   return (
     <div className="flex flex-col gap-4 w-full">
       {isSent ? (
-        <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <div className="flex flex-col items-center gap-3 py-6 text-center animate-fade-in">
           <CheckCircle2 size={48} className="text-emerald-500 animate-bounce" />
-          <h3 className="font-mono text-lg font-semibold text-stone-800">
-            Ссылка отправлена!
+          <h3 className="font-mono text-lg font-semibold text-stone-800 dark:text-stone-100">
+            Запрос принят!
           </h3>
-          <p className="text-xs font-mono text-stone-500">
-            Мы отправили инструкцию по сбросу пароля на адрес <span className="font-bold">{email}</span>.
+          <p className="text-xs font-mono text-stone-500 dark:text-stone-400">
+            Инструкция по восстановлению создана для адреса <span className="font-bold text-stone-800 dark:text-stone-200">{email}</span>.
           </p>
 
           <div className="mt-4 flex flex-col gap-2 w-full">
             {demoToken && onNavigateToReset && (
               <PillButton onClick={() => onNavigateToReset(demoToken)} className="w-full">
-                Ввести новый пароль (Тестовый режим)
+                Ввести новый пароль прямо сейчас
               </PillButton>
             )}
             <PillButton variant="outline" onClick={onNavigateToLogin} className="w-full">
@@ -79,14 +79,14 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
           />
 
           {error && (
-            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-mono text-center">
+            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-mono text-center border border-rose-200 dark:border-rose-900/50">
               {error}
             </div>
           )}
 
           <div className="mt-4">
             <PillButton type="submit" isLoading={isLoading} className="w-full">
-              ОТПРАВИТЬ ССЫЛКУ
+              СБРОСИТЬ ПАРОЛЬ
             </PillButton>
           </div>
 
@@ -94,7 +94,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
             <button
               type="button"
               onClick={onNavigateToLogin}
-              className="text-xs font-mono text-[#5b25e8] hover:underline cursor-pointer"
+              className="text-xs font-mono text-[#5b25e8] dark:text-purple-400 hover:underline cursor-pointer"
             >
               Вернуться ко входу
             </button>

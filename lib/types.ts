@@ -2,15 +2,21 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role?: 'admin' | 'user';
   avatarUrl?: string;
   token?: string;
+  dailyTasksTakenToday?: number;
+  createdAt?: string;
 }
 
 export interface UserSummary {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   avatarUrl?: string;
+  role?: string;
+  isOnline?: boolean;
+  lastSeenText?: string;
 }
 
 export interface DailyChallenge {
@@ -29,10 +35,13 @@ export interface TaskItem {
   authorName: string;
   userId?: string;
   dateText: string;
-  prompt: string;          // e.g. "Сфотографируй воду"
+  prompt: string;
   isCompleted: boolean;
-  deadlineText: string;    // e.g. "Выполнение до 21.09"
-  expiresAt?: string;      // ISO строка дедлайна для таймера обратного отсчета
+  isFailed?: boolean;
+  penalty?: string;
+  deadlineText: string;
+  expiresAt?: string;
+  sourceType?: 'system' | 'self';
   commentCount: number;
   completedPhotoUrl?: string;
   completedAt?: string;
@@ -51,13 +60,14 @@ export interface TaskComment {
 export interface ConversationItem {
   id: string;
   friendId: string;
-  friendName: string;      // e.g. "Друг 1"
+  friendName: string;
   user1Id?: string;
   user2Id?: string;
-  dateText: string;        // e.g. "20 сентября 2026"
-  timeText: string;        // e.g. "13:20"
-  lastMessage: string;     // e.g. "Привет!!"
+  dateText: string;
+  timeText: string;
+  lastMessage: string;
   unread: boolean;
+  unreadCount?: number;
 }
 
 export interface ChatMessage {
@@ -67,7 +77,8 @@ export interface ChatMessage {
   senderName: string;
   text: string;
   photoUrl?: string;
-  timeText: string;        // e.g. "12:00"
+  timeText: string;
+  status?: 'sending' | 'delivered' | 'read';
   isOutgoing: boolean;
 }
 

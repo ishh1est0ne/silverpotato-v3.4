@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Фото-Квесты',
   webDir: 'out',
   server: {
-    androidScheme: 'https',
-    cleartext: true, // Разрешает запросы к http:// серверу (например http://100.102.28.78:4000)
+    androidScheme: 'http',
+    cleartext: true, // Разрешает запросы к http:// серверу (например http://100.106.175.106:4000)
   },
   plugins: {
     LocalNotifications: {

@@ -36,7 +36,7 @@ jobs:
 
       - name: Build Web App
         env:
-          NEXT_PUBLIC_API_URL: http://100.102.28.78:4000
+          NEXT_PUBLIC_API_URL: http://100.106.175.106:4000
         run: npm run build
 
       - name: Copy Assets and Sync

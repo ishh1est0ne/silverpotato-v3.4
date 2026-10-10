@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { User, TaskItem, TaskComment, ConversationItem, ChatMessage, AppNotification, UserSummary } from '../types';
 
 export const customApiUrl =
-  process.env.NEXT_PUBLIC_API_URL || 'http://100.102.28.78:4000';
+  process.env.NEXT_PUBLIC_API_URL || 'http://100.106.175.106:4000';
 export const isCustomBackendConfigured = Boolean(
   customApiUrl && customApiUrl.startsWith('http')
 );

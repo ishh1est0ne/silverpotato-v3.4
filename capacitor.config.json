@@ -3,7 +3,7 @@
   "appName": "Фото-Квесты",
   "webDir": "out",
   "server": {
-    "androidScheme": "https",
+    "androidScheme": "http",
     "cleartext": true
   },
   "plugins": {

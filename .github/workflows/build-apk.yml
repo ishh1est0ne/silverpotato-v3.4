@@ -26,9 +26,10 @@ jobs:
           distribution: 'temurin'
           java-version: 21
 
-      - name: Accept Android SDK licenses
+      - name: Accept Android SDK licenses & install platform 36
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" || true
 
       - name: Install dependencies
         run: npm ci
@@ -47,14 +48,10 @@ jobs:
 
       - name: Build Debug APK
         run: |
+          set -e -o pipefail
           cd android
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          if ! ./gradlew assembleDebug --no-daemon --stacktrace > build.log 2>&1; then
-            cat build.log | tail -n 60
-            ERR_MSG=$(tail -n 15 build.log | tr '\n' ' ' | tr '"' "'")
-            echo "::error title=Gradle Error::$ERR_MSG"
-            exit 1
-          fi
+          ./gradlew assembleDebug --no-daemon --stacktrace
           echo "=== Found APK files ==="
           find app/build/outputs/apk -name "*.apk"
 

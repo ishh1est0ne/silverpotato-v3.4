@@ -47,10 +47,14 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          set -e -o pipefail
           cd android
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          if ! ./gradlew assembleDebug --no-daemon --stacktrace > build.log 2>&1; then
+            cat build.log | tail -n 60
+            ERR_MSG=$(tail -n 15 build.log | tr '\n' ' ' | tr '"' "'")
+            echo "::error title=Gradle Error::$ERR_MSG"
+            exit 1
+          fi
           echo "=== Found APK files ==="
           find app/build/outputs/apk -name "*.apk"
 

@@ -211,10 +211,34 @@ async function generateNewChallenge(durationHours = 3) {
     [`task-${id}`, id, randomPrompt, dateText, deadlineText, expiresAt]
   );
 
+  const taskObj = {
+    id: `task-${id}`,
+    challengeId: id,
+    title: '⚡ Задание дня',
+    authorName: 'Система',
+    prompt: randomPrompt,
+    dateText,
+    deadlineText,
+    expiresAt: expiresAt.toISOString(),
+    isCompleted: false,
+    commentCount: 0,
+  };
+
   const challenge = res.rows[0];
-  io.emit('new_challenge', challenge);
+  io.emit('new_challenge', taskObj);
   return challenge;
 }
+
+// Автоматическая генерация случайного задания каждые 15 минут
+const DROP_INTERVAL_MS = 15 * 60 * 1000;
+setInterval(async () => {
+  try {
+    console.log('⏰ [15 мин] Автоматическая публикация нового фото-задания дня...');
+    await generateNewChallenge(1); // Челлендж с таймером на 1 час
+  } catch (err) {
+    console.warn('Ошибка таймера 15-минутного дропа:', err.message);
+  }
+}, DROP_INTERVAL_MS);
 
 // Middleware аутентификации по JWT
 function authenticateToken(req, res, next) {

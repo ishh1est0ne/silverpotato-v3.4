@@ -21,11 +21,12 @@ import { NewChatModal } from '@/components/chat/NewChatModal';
 import { ProfileScreen } from '@/components/profile/ProfileScreen';
 import { NotificationsScreen } from '@/components/notifications/NotificationsScreen';
 import { PostsFeedScreen } from '@/components/posts/PostsFeedScreen';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 
 import { TaskItem, ConversationItem, User } from '@/lib/types';
 import { api } from '@/lib/service/apiService';
 import { triggerHaptic, sendLocalPush } from '@/lib/native';
-import { Smartphone, Monitor, Plus, MessageSquarePlus, Zap } from 'lucide-react';
+import { Smartphone, Monitor, Plus, MessageSquarePlus, Zap, Sliders } from 'lucide-react';
 
 export default function App() {
   // Режим экрана: авторизация или главное приложение (по умолчанию: Вход / Log In)
@@ -41,6 +42,11 @@ export default function App() {
   // Таб навигации и подрежим заданий (задания дня / лента выполненных постов)
   const [activeTab, setActiveTab] = useState<AppTab>('tasks');
   const [taskSubView, setTaskSubView] = useState<'tasks' | 'feed'>('tasks');
+
+  // Настройки приложения (Тема и получение задач)
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [receiveTasksEnabled, setReceiveTasksEnabled] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Данные заданий
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -87,6 +93,15 @@ export default function App() {
             setResetToken(token);
             setAuthView('reset');
           }
+
+          const savedTheme = localStorage.getItem('app_theme') as 'dark' | 'light' | null;
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            setTheme(savedTheme);
+          }
+          const savedReceive = localStorage.getItem('app_receive_tasks');
+          if (savedReceive !== null) {
+            setReceiveTasksEnabled(savedReceive === 'true');
+          }
         }
       }
     })();
@@ -95,6 +110,50 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  // 15-минутный интервал заданий и real-time подписка на Socket.io
+  useEffect(() => {
+    const unsubscribe = api.tasks.onNewChallenge((newTask) => {
+      if (receiveTasksEnabled) {
+        triggerHaptic('medium');
+        sendLocalPush('⚡ Новое задание дня!', newTask.prompt);
+        setTasks((prev) => [newTask, ...prev.filter((t) => t.id !== newTask.id)]);
+      }
+    });
+
+    // Клиентский таймер каждые 15 минут для автономного режима
+    const interval = setInterval(async () => {
+      if (receiveTasksEnabled) {
+        try {
+          const drop = await api.tasks.triggerDailyDrop(1);
+          await triggerHaptic('medium');
+          await sendLocalPush('⚡ Новое задание дня (15 мин)!', drop.prompt);
+          setTasks((prev) => [drop, ...prev.filter((t) => t.id !== drop.id)]);
+        } catch (e) {
+          console.warn('Ошибка периодического дропа:', e);
+        }
+      }
+    }, 15 * 60 * 1000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [receiveTasksEnabled]);
+
+  const handleThemeChange = (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app_theme', newTheme);
+    }
+  };
+
+  const handleReceiveTasksChange = (enabled: boolean) => {
+    setReceiveTasksEnabled(enabled);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app_receive_tasks', String(enabled));
+    }
+  };
 
   // Поиск по заданиям при изменении строки
   useEffect(() => {
@@ -234,13 +293,15 @@ export default function App() {
   };
 
   // ==========================================
-  // Рендер основного приложения (Фиолетовый фон #5216e8)
+  // Рендер основного приложения
   // ==========================================
   const renderMainApp = () => {
+    const mainBgClass = theme === 'dark' ? 'bg-[#180e30]' : 'bg-[#5216e8]';
+
     // Если открыт конкретный чат
     if (activeChat) {
       return (
-        <div className="w-full h-full flex flex-col bg-[#5216e8]">
+        <div className={`w-full h-full flex flex-col ${mainBgClass}`}>
           <ChatScreen
             conversation={activeChat}
             onBack={() => {
@@ -254,14 +315,28 @@ export default function App() {
     }
 
     return (
-      <div className="w-full h-full flex flex-col bg-[#5216e8] relative overflow-hidden">
+      <div className={`w-full h-full flex flex-col ${mainBgClass} relative overflow-hidden transition-colors duration-300`}>
         {/* Скроллируемая область контента */}
         <div className="flex-1 overflow-y-auto pt-[max(0.75rem,env(safe-area-inset-top))] px-4 pb-4">
           {/* Вкладка 1: Экран Заданий и Ленты постов */}
           {activeTab === 'tasks' && (
             <div className="flex flex-col gap-3 py-2">
+              {/* Предупреждение, если получение заданий выключено в настройках */}
+              {!receiveTasksEnabled && (
+                <div className="bg-amber-100 text-amber-900 text-[11px] font-mono px-3 py-1.5 rounded-xl flex items-center justify-between border border-amber-200">
+                  <span>⚠️ Получение заданий выключено</span>
+                  <button
+                    type="button"
+                    onClick={() => handleReceiveTasksChange(true)}
+                    className="underline font-bold cursor-pointer hover:text-amber-950"
+                  >
+                    Включить
+                  </button>
+                </div>
+              )}
+
               {/* Переключатель: Задания / Лента постов */}
-              <div className="flex bg-[#3b0fb3] p-1 rounded-2xl gap-1 shadow-inner">
+              <div className={`flex p-1 rounded-2xl gap-1 shadow-inner ${theme === 'dark' ? 'bg-[#2b1552]' : 'bg-[#3b0fb3]'}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -404,7 +479,15 @@ export default function App() {
 
           {/* Вкладка 3: Профиль */}
           {activeTab === 'profile' && (
-            <ProfileScreen user={currentUser} onLogout={handleLogout} />
+            <ProfileScreen
+              user={currentUser}
+              onLogout={handleLogout}
+              theme={theme}
+              onThemeChange={handleThemeChange}
+              receiveTasksEnabled={receiveTasksEnabled}
+              onReceiveTasksChange={handleReceiveTasksChange}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
           )}
 
           {/* Вкладка 4: Уведомления */}
@@ -460,16 +543,42 @@ export default function App() {
             onCommentsUpdated={handleCommentsUpdated}
           />
         )}
+
+        {/* Модальное окно настроек (Белая/Темная тема, Задания раз в 15 мин) */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          theme={theme}
+          onThemeChange={handleThemeChange}
+          receiveTasksEnabled={receiveTasksEnabled}
+          onReceiveTasksChange={handleReceiveTasksChange}
+          onResetDemoData={async () => {
+            localStorage.removeItem('app_tasks');
+            localStorage.removeItem('app_comments');
+            const fresh = await api.tasks.getTasks('');
+            setTasks(fresh);
+          }}
+        />
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-stone-900 flex flex-col items-center justify-center p-0 md:p-6 text-stone-100">
+    <div
+      className={`min-h-screen flex flex-col items-center justify-center p-0 md:p-6 transition-colors duration-300 ${
+        theme === 'dark' ? 'bg-stone-950 text-stone-100' : 'bg-slate-100 text-stone-900'
+      }`}
+    >
       {/* Панель быстрого переключения экранов */}
-      <header className="w-full max-w-lg mb-3 px-2 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+      <header
+        className={`w-full max-w-lg mb-3 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs font-mono rounded-2xl transition-colors ${
+          theme === 'dark'
+            ? 'bg-stone-900/95 text-stone-200 border border-stone-800'
+            : 'bg-white/95 text-stone-800 border border-stone-200 shadow-sm'
+        }`}
+      >
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-stone-400">Экран:</span>
+          <span className={theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}>Экран:</span>
           <button
             onClick={() => {
               triggerHaptic('select');
@@ -477,7 +586,11 @@ export default function App() {
               setActiveChat(null);
             }}
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-              authView === 'login' ? 'bg-[#5516ea] text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+              authView === 'login'
+                ? 'bg-[#5516ea] text-white'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Вход
@@ -489,7 +602,11 @@ export default function App() {
               setActiveChat(null);
             }}
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-              authView === 'signup' ? 'bg-[#5516ea] text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+              authView === 'signup'
+                ? 'bg-[#5516ea] text-white'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Регистрация
@@ -501,7 +618,11 @@ export default function App() {
               setActiveChat(null);
             }}
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-              authView === 'forgot' ? 'bg-[#5516ea] text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+              authView === 'forgot'
+                ? 'bg-[#5516ea] text-white'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Сброс пароля
@@ -517,7 +638,9 @@ export default function App() {
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
               !authView && activeTab === 'tasks' && taskSubView === 'tasks' && !activeChat
                 ? 'bg-[#5516ea] text-white'
-                : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Задания
@@ -533,7 +656,9 @@ export default function App() {
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
               !authView && activeTab === 'tasks' && taskSubView === 'feed' && !activeChat
                 ? 'bg-[#5516ea] text-white'
-                : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Лента постов
@@ -548,7 +673,9 @@ export default function App() {
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
               !authView && activeTab === 'messages' && !activeChat
                 ? 'bg-[#5516ea] text-white'
-                : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Сообщения
@@ -563,10 +690,29 @@ export default function App() {
             className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
               !authView && activeChat
                 ? 'bg-[#5516ea] text-white'
-                : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
             }`}
           >
             Чат
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic('select');
+              setIsSettingsOpen(true);
+            }}
+            className={`px-2.5 py-1 rounded-lg cursor-pointer transition flex items-center gap-1 ${
+              isSettingsOpen
+                ? 'bg-[#5516ea] text-white'
+                : theme === 'dark'
+                ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+            }`}
+            title="Открыть настройки приложения"
+          >
+            <Sliders size={13} />
+            <span>Настройки</span>
           </button>
         </div>
 
@@ -575,7 +721,11 @@ export default function App() {
             triggerHaptic('select');
             setIsPhoneFrame(!isPhoneFrame);
           }}
-          className="hidden md:flex items-center gap-1 bg-stone-800 hover:bg-stone-700 px-2 py-1 rounded-lg text-stone-300 cursor-pointer"
+          className={`hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg cursor-pointer transition ${
+            theme === 'dark'
+              ? 'bg-stone-800 hover:bg-stone-700 text-stone-300'
+              : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+          }`}
           title="Переключить рамку смартфона"
         >
           {isPhoneFrame ? <Monitor size={14} /> : <Smartphone size={14} />}
@@ -587,7 +737,9 @@ export default function App() {
       <main
         className={`w-full transition-all duration-300 overflow-hidden ${
           isPhoneFrame
-            ? 'max-w-[400px] h-[840px] rounded-[44px] shadow-[0_25px_60px_rgba(0,0,0,0.6)] border-[10px] border-stone-800 ring-1 ring-stone-700 relative'
+            ? `max-w-[400px] h-[840px] rounded-[44px] shadow-[0_25px_60px_rgba(0,0,0,0.4)] border-[10px] ${
+                theme === 'dark' ? 'border-stone-800 ring-1 ring-stone-700' : 'border-stone-300 ring-1 ring-stone-200'
+              } relative`
             : 'max-w-2xl h-[92vh] rounded-2xl shadow-2xl relative'
         }`}
       >

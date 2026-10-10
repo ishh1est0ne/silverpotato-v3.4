@@ -848,6 +848,22 @@ export const api = {
 
       return newComment;
     },
+
+    onNewChallenge(callback: (task: TaskItem) => void): () => void {
+      if (isCustomBackendConfigured) {
+        const socket = getSocket();
+        if (socket) {
+          const handler = (task: TaskItem) => {
+            callback(task);
+          };
+          socket.on('new_challenge', handler);
+          return () => {
+            socket.off('new_challenge', handler);
+          };
+        }
+      }
+      return () => {};
+    },
   },
 
   chat: {

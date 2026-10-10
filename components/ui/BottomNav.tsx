@@ -25,7 +25,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   };
 
   return (
-    <div className="w-full bg-white dark:bg-[#141418] border-t border-stone-100 dark:border-white/10 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] px-6 py-3 flex items-center justify-around relative select-none pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-colors duration-200">
+    <div className="w-full bg-white dark:bg-[#141418] border-t border-slate-200 dark:border-white/10 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-6 py-3 flex items-center justify-around relative select-none pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-colors duration-200">
       {/* 1. Таб: Задания */}
       <button
         type="button"

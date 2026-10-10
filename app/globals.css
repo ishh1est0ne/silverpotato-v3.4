@@ -29,10 +29,16 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: #09090b;
+  background-color: #f1f5f9;
+  color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--foreground);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark, html.dark body {
+  background-color: #09090b;
+  color: #f4f4f5;
 }
 
 /* Скрытие скроллбаров на мобилках */

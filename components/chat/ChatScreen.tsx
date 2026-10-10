@@ -135,21 +135,24 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     switch (status) {
       case 'read':
         return (
-          <span title="Прочитано" className="text-[#5516ea] dark:text-purple-300 flex items-center">
+          <span title="Прочитано" className="text-[#5516ea] dark:text-purple-300 flex items-center gap-0.5 text-[9px] font-mono font-bold">
             <CheckCheck size={14} strokeWidth={2.5} />
+            <span className="text-[9px]">Прочитано</span>
           </span>
         );
       case 'delivered':
         return (
-          <span title="Доставлено" className="text-stone-400 dark:text-stone-500 flex items-center">
+          <span title="Доставлено" className="text-stone-400 dark:text-stone-400 flex items-center gap-0.5 text-[9px] font-mono">
             <Check size={13} strokeWidth={2.2} />
+            <span className="text-[9px]">Доставлено</span>
           </span>
         );
       case 'sending':
       default:
         return (
-          <span title="Отправляется / Не доставлено" className="text-stone-400 flex items-center">
+          <span title="Отправляется / Не доставлено" className="text-amber-500 dark:text-amber-400 flex items-center gap-0.5 text-[9px] font-mono">
             <Clock size={12} className="animate-spin" />
+            <span className="text-[9px]">Отправка</span>
           </span>
         );
     }
@@ -162,20 +165,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="w-10 h-10 rounded-full bg-white/20 dark:bg-white/10 text-white flex items-center justify-center hover:bg-white/30 dark:hover:bg-white/20 transition cursor-pointer active:scale-95 shrink-0"
+          className="w-10 h-10 rounded-full bg-white text-stone-800 border border-slate-200 shadow-sm hover:bg-slate-100 dark:bg-white/10 dark:text-white dark:border-white/10 dark:hover:bg-white/20 transition cursor-pointer active:scale-95 shrink-0 flex items-center justify-center"
           title="Назад к сообщениям"
         >
           <ArrowLeft size={20} />
         </button>
 
-        <div className="flex-1 bg-[#c6baf9] dark:bg-[#2d1b69] text-stone-900 dark:text-stone-100 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-md truncate">
+        <div className="flex-1 bg-white text-stone-900 border border-slate-200 dark:bg-[#2d1b69] dark:text-stone-100 dark:border-purple-600/30 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-md truncate">
           {`Чат: ${conversation.friendName}`}
         </div>
       </div>
 
       {/* Разделитель дат */}
       <div className="text-center py-1.5">
-        <span className="text-white/70 dark:text-white/50 font-mono text-[11px] px-3 py-0.5 rounded-full bg-black/20">
+        <span className="text-stone-500 dark:text-white/60 font-mono text-[11px] px-3 py-0.5 rounded-full bg-slate-200/80 dark:bg-black/40">
           Сегодня
         </span>
       </div>
@@ -212,20 +215,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       </div>
 
       {/* Панель ввода сообщения */}
-      <div className="p-3 bg-white/10 dark:bg-black/30 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-white/10">
+      <div className="p-3 bg-white/95 dark:bg-[#141418]/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-white/10 shadow-lg">
         <form onSubmit={handleSend} className="flex items-center gap-2">
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Напишите сообщение..."
-            className="flex-1 bg-white dark:bg-[#181822] text-stone-900 dark:text-stone-100 placeholder-stone-400 font-mono text-sm py-3 px-5 rounded-full shadow-inner border border-stone-200 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
+            className="flex-1 bg-slate-100 dark:bg-[#181822] text-stone-900 dark:text-stone-100 placeholder-stone-400 font-mono text-sm py-3 px-5 rounded-full shadow-inner border border-slate-200 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
           />
 
           <button
             type="submit"
             disabled={!inputText.trim() || isSending}
-            className="w-12 h-12 rounded-full bg-white dark:bg-[#5516ea] text-[#5516ea] dark:text-white hover:brightness-105 shadow-md flex items-center justify-center transition active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+            className="w-12 h-12 rounded-full bg-[#5516ea] text-white hover:brightness-110 shadow-md flex items-center justify-center transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
           >
             <Send size={18} />
           </button>

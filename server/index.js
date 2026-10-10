@@ -116,13 +116,11 @@ initDb();
 // 2. Очистка старых фейковых чатов и создание аккуратного аккаунта admin
 async function cleanLegacyAndSetupAdmin() {
   try {
-    // Удаляем непристойные демо-чаты и старые мусорные тестовые записи
-    await pool.query(`
-      DELETE FROM conversations 
-      WHERE friend_name ILIKE '%чмошник%' 
-         OR friend_name ILIKE '%пидорас%'
-         OR last_message ILIKE '%дура%';
-    `);
+    // Полная очистка всех старых бесед, сообщений, комментариев и чужих постов (Requirement 5)
+    await pool.query('TRUNCATE TABLE messages CASCADE;');
+    await pool.query('TRUNCATE TABLE conversations CASCADE;');
+    await pool.query('TRUNCATE TABLE task_comments CASCADE;');
+    await pool.query("DELETE FROM tasks WHERE user_id IS NULL OR user_id NOT IN (SELECT id FROM users WHERE role = 'admin' OR name = 'admin');");
 
     // Проверяем наличие аккаунта admin
     const adminCheck = await pool.query("SELECT * FROM users WHERE email = 'admin' OR name = 'admin'");
@@ -398,6 +396,26 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         dailyTasksTakenToday: takenToday,
       },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Обновление профиля (имени) пользователя
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Не авторизован' });
+  }
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Имя не может быть пустым' });
+  }
+  try {
+    const updated = await pool.query(
+      'UPDATE users SET name = $1 WHERE id = $2 RETURNING id, name, email, role, avatar_url',
+      [name.trim(), req.user.id]
+    );
+    res.json({ ok: true, user: updated.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

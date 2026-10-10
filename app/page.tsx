@@ -334,7 +334,7 @@ export default function App() {
   // Рендер основного приложения
   // ==========================================
   const renderMainApp = () => {
-    const mainBgClass = theme === 'dark' ? 'bg-[#09090b]' : 'bg-[#5216e8]';
+    const mainBgClass = theme === 'dark' ? 'bg-[#09090b]' : 'bg-[#f8fafc]';
 
     if (activeChat) {
       return (
@@ -374,7 +374,9 @@ export default function App() {
               )}
 
               {/* Переключатель: Задания / Лента постов */}
-              <div className={`flex p-1 rounded-2xl gap-1 shadow-inner ${theme === 'dark' ? 'bg-[#181822] border border-white/10' : 'bg-[#3b0fb3]'}`}>
+              <div className={`flex p-1 rounded-2xl gap-1 shadow-inner ${
+                theme === 'dark' ? 'bg-[#181822] border border-white/10' : 'bg-slate-200/80 border border-slate-300/60'
+              }`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -386,7 +388,9 @@ export default function App() {
                       ? theme === 'dark'
                         ? 'bg-purple-600 text-white shadow'
                         : 'bg-white text-[#5216e8] shadow'
-                      : 'text-stone-300 hover:text-white'
+                      : theme === 'dark'
+                      ? 'text-stone-400 hover:text-white'
+                      : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
                   <span>🎯 Задания дня</span>
@@ -402,7 +406,9 @@ export default function App() {
                       ? theme === 'dark'
                         ? 'bg-purple-600 text-white shadow'
                         : 'bg-white text-[#5216e8] shadow'
-                      : 'text-stone-300 hover:text-white'
+                      : theme === 'dark'
+                      ? 'text-stone-400 hover:text-white'
+                      : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
                   <span>📸 Лента постов</span>
@@ -410,7 +416,7 @@ export default function App() {
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-sans font-semibold ${
                       taskSubView === 'feed'
                         ? theme === 'dark' ? 'bg-purple-900 text-white' : 'bg-[#5216e8] text-white'
-                        : 'bg-white/20 text-stone-200'
+                        : theme === 'dark' ? 'bg-white/10 text-stone-300' : 'bg-slate-300 text-stone-700'
                     }`}
                   >
                     {tasks.filter((t) => t.isCompleted && t.completedPhotoUrl).length}
@@ -480,7 +486,7 @@ export default function App() {
                   {/* Список карточек заданий */}
                   <div className="flex flex-col gap-3.5">
                     {tasks.length === 0 ? (
-                      <div className="bg-white/90 dark:bg-[#141418] rounded-3xl p-6 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-stone-200/50 dark:border-white/10 shadow">
+                      <div className="bg-white dark:bg-[#141418] rounded-3xl p-6 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-slate-200 dark:border-white/10 shadow-sm animate-pop-in">
                         Заданий не найдено
                       </div>
                     ) : (
@@ -509,7 +515,7 @@ export default function App() {
           {activeTab === 'messages' && (
             <div className="flex flex-col gap-4 py-2 animate-fade-in">
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-[#c6baf9] dark:bg-[#2d1b69] text-stone-900 dark:text-stone-100 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-md">
+                <div className="flex-1 bg-white text-stone-900 border border-slate-200 dark:bg-[#2d1b69] dark:text-stone-100 dark:border-purple-600/30 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-sm">
                   Твои сообщения
                 </div>
                 <button
@@ -518,8 +524,8 @@ export default function App() {
                     triggerHaptic('select');
                     setIsNewChatOpen(true);
                   }}
-                  className="w-11 h-11 bg-white dark:bg-[#181822] text-[#5216e8] dark:text-purple-300 hover:bg-stone-100 dark:hover:bg-[#20202c] border border-transparent dark:border-white/10 rounded-xl shadow-md flex items-center justify-center cursor-pointer transition active:scale-95 shrink-0"
-                  title="Начать чат с другом"
+                  className="w-11 h-11 bg-white dark:bg-[#181822] text-[#5216e8] dark:text-purple-300 hover:bg-slate-100 dark:hover:bg-[#20202c] border border-slate-200 dark:border-white/10 rounded-xl shadow-sm flex items-center justify-center cursor-pointer transition active:scale-95 shrink-0"
+                  title="Начать чат с пользователем"
                 >
                   <MessageSquarePlus size={22} strokeWidth={2.2} />
                 </button>
@@ -528,9 +534,9 @@ export default function App() {
               {/* Список карточек диалогов */}
               <div className="flex flex-col gap-3.5">
                 {conversations.length === 0 ? (
-                  <div className="bg-white/90 dark:bg-[#141418] rounded-3xl p-8 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-stone-200/50 dark:border-white/10 shadow flex flex-col items-center gap-2">
+                  <div className="bg-white dark:bg-[#141418] rounded-3xl p-8 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-slate-200 dark:border-white/10 shadow-sm flex flex-col items-center gap-2 animate-pop-in">
                     <p className="font-bold text-stone-800 dark:text-stone-100">У вас пока нет диалогов</p>
-                    <p className="text-xs text-stone-400">Нажмите «+» вверху, чтобы написать другу в сети</p>
+                    <p className="text-xs text-stone-400">Нажмите «+» вверху, чтобы написать пользователю в сети</p>
                   </div>
                 ) : (
                   conversations.map((conv) => (
@@ -555,6 +561,9 @@ export default function App() {
               receiveTasksEnabled={receiveTasksEnabled}
               onReceiveTasksChange={handleReceiveTasksChange}
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onUserNameUpdated={(newName) => {
+                setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
+              }}
             />
           )}
 
@@ -625,8 +634,12 @@ export default function App() {
             localStorage.removeItem('app_tasks');
             localStorage.removeItem('app_comments');
             localStorage.removeItem('app_conversations');
+            localStorage.removeItem('app_messages');
+            localStorage.removeItem('app_notifications');
             const fresh = await api.tasks.getTasks('');
+            const freshConvs = await api.chat.getConversations();
             setTasks(fresh);
+            setConversations(freshConvs);
           }}
         />
       </div>

@@ -52,7 +52,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   return (
     <div
       onClick={() => onOpenTaskModal(task)}
-      className="w-full bg-white dark:bg-[#141418] rounded-3xl p-5 shadow-lg border border-purple-100 dark:border-white/10 flex flex-col gap-3 transition-all duration-200 active:scale-[0.99] cursor-pointer hover:shadow-xl animate-fade-in"
+      className="w-full bg-white dark:bg-[#141418] rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-white/10 flex flex-col gap-3 transition-all duration-200 active:scale-[0.99] cursor-pointer hover:shadow-md animate-fade-in"
     >
       {/* Верхняя строка: Заголовок + Дата + Кнопка КОММ */}
       <div className="flex items-start justify-between">

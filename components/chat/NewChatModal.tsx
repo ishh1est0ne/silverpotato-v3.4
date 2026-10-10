@@ -91,82 +91,89 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
           </button>
         </div>
 
-        {/* Список зарегистрированных пользователей без почты для безопасности */}
-        {usersList.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400 font-medium flex items-center gap-1.5">
-              <Users size={13} className="text-[#5516ea] dark:text-purple-400" />
-              Пользователи сети:
-            </span>
-            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
-              {usersList.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => handleStartChat(u.id, u.name)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200/50 dark:border-purple-800/40 text-left transition cursor-pointer active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#5516ea] text-white flex items-center justify-center text-xs font-bold font-mono shrink-0 shadow-sm">
-                      {u.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-stone-900 dark:text-stone-100 leading-none flex items-center gap-1.5">
-                        <span>{u.name}</span>
-                        {u.role === 'admin' && (
-                          <span className="text-[9px] font-mono px-1.5 py-0.2 bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded font-semibold">
-                            admin
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] font-mono mt-1 flex items-center gap-1">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            u.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'
-                          }`}
-                        />
-                        <span className={u.isOnline ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-stone-400 dark:text-stone-500'}>
-                          {u.isOnline ? 'В сети' : u.lastSeenText ? `Был(а) ${u.lastSeenText}` : 'Не в сети'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-mono text-[#5516ea] dark:text-purple-300 font-semibold">
-                    Написать →
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleStartChat(undefined, friendName);
-          }}
-          className="flex flex-col gap-3.5 pt-1 border-t border-stone-100 dark:border-white/10"
-        >
-          <InputField
-            label="Или введите имя друга вручную"
+        {/* Поиск среди реальных пользователей */}
+        <div className="flex flex-col gap-2">
+          <input
+            type="text"
             value={friendName}
             onChange={(e) => setFriendName(e.target.value)}
-            placeholder="Например: Алексей или Друг"
-            leftIcon={<User size={18} />}
+            placeholder="Поиск по имени пользователя..."
+            className="w-full bg-slate-100 dark:bg-[#181822] text-stone-900 dark:text-stone-100 placeholder-stone-400 font-mono text-xs py-2.5 px-4 rounded-xl border border-slate-200 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
           />
+        </div>
 
-          {error && (
-            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-mono text-center border border-rose-200 dark:border-rose-900/40">
-              {error}
-            </div>
-          )}
-
-          <div className="pt-1">
-            <PillButton type="submit" isLoading={isLoading} className="w-full">
-              Открыть чат
-            </PillButton>
+        {/* Список зарегистрированных пользователей без почты для безопасности */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400 font-medium flex items-center gap-1.5">
+              <Users size={13} className="text-[#5516ea] dark:text-purple-400" />
+              Доступные пользователи:
+            </span>
+            <span className="text-[10px] font-mono text-stone-400">
+              Всего: {usersList.length}
+            </span>
           </div>
-        </form>
+
+          <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
+            {usersList.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-stone-900/40 border border-slate-200/60 dark:border-white/5 text-center flex flex-col gap-1">
+                <p className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                  Нет других пользователей
+                </p>
+                <p className="text-[11px] text-stone-400">
+                  Зарегистрируйте второй аккаунт на другом устройстве для проверки чата.
+                </p>
+              </div>
+            ) : (
+              usersList
+                .filter((u) => !friendName.trim() || u.name.toLowerCase().includes(friendName.trim().toLowerCase()))
+                .map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => handleStartChat(u.id, u.name)}
+                    className="w-full flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-purple-950/30 dark:hover:bg-purple-900/40 border border-slate-200 dark:border-purple-800/40 text-left transition cursor-pointer active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#5516ea] text-white flex items-center justify-center text-xs font-bold font-mono shrink-0 shadow-sm">
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-stone-900 dark:text-stone-100 leading-none flex items-center gap-1.5">
+                          <span>{u.name}</span>
+                          {u.role === 'admin' && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded font-semibold">
+                              admin
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-mono mt-1 flex items-center gap-1">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              u.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'
+                            }`}
+                          />
+                          <span className={u.isOnline ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-stone-400 dark:text-stone-500'}>
+                            {u.isOnline ? 'В сети' : u.lastSeenText ? `Был(а) ${u.lastSeenText}` : 'Не в сети'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-mono text-[#5516ea] dark:text-purple-300 font-semibold px-2 py-1 rounded-lg bg-purple-100/60 dark:bg-purple-900/40">
+                      Написать →
+                    </span>
+                  </button>
+                ))
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-mono text-center border border-rose-200 dark:border-rose-900/40">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -53,42 +53,30 @@ export const PHOTO_CHALLENGES_BANK = [
 ];
 
 // Начальные данные для локального режима (чистый профиль для новых пользователей)
-const INITIAL_TASKS: TaskItem[] = [
-  {
-    id: 'task-admin-initial',
-    title: '⚡ Задание дня',
-    authorName: 'admin',
-    dateText: 'Вчера',
-    prompt: 'Сфотографируй закат или вечернее небо',
-    isCompleted: true,
-    deadlineText: 'Выполнено',
-    commentCount: 1,
-    completedPhotoUrl: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&auto=format&fit=crop&q=80',
-    completedAt: 'Вчера, 19:40',
-  },
-];
+const INITIAL_TASKS: TaskItem[] = [];
 
 const INITIAL_CONVERSATIONS: ConversationItem[] = [];
 
 const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {};
 
+const INITIAL_NOTIFICATIONS: AppNotification[] = [];
 
-const INITIAL_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif-1',
-    title: 'Новое задание дня!',
-    description: 'Появился случайный челлендж: "Сфотографируй воду"',
-    timeText: '10 мин назад',
-    read: false,
-  },
-  {
-    id: 'notif-2',
-    title: 'Новое сообщение',
-    description: 'Друг 1 отправил вам сообщение в чате',
-    timeText: '1 час назад',
-    read: true,
-  },
-];
+// Автоматическая очистка старого кэша при обновлении версии (Requirement 5)
+const STORAGE_CLEAN_VERSION = 'v3.9_clean_state_final_v2';
+if (typeof window !== 'undefined') {
+  try {
+    if (localStorage.getItem('app_storage_ver') !== STORAGE_CLEAN_VERSION) {
+      localStorage.removeItem('app_tasks');
+      localStorage.removeItem('app_conversations');
+      localStorage.removeItem('app_messages');
+      localStorage.removeItem('app_comments');
+      localStorage.removeItem('app_notifications');
+      localStorage.setItem('app_storage_ver', STORAGE_CLEAN_VERSION);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 // Локальное хранилище данных (с поддержкой изоляции сессий вкладок через sessionStorage)
 class LocalStore {
@@ -398,6 +386,20 @@ export const api = {
       LocalStore.set('app_user', null);
       LocalStore.set('app_token', null);
     },
+
+    async updateName(newName: string): Promise<User> {
+      const current = LocalStore.get<User | null>('app_user', null);
+      const updated: User = { ...(current || { id: 'user-current', email: '' }), name: newName };
+      LocalStore.set('app_user', updated);
+      if (isCustomBackendConfigured) {
+        await safeFetchJson(`${customApiUrl}/api/auth/profile`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name: newName }),
+        });
+      }
+      return updated;
+    },
   },
 
   tasks: {
@@ -703,57 +705,7 @@ export const api = {
     },
 
     async getComments(taskId: string): Promise<TaskComment[]> {
-      const localMap = LocalStore.get<Record<string, TaskComment[]>>('app_comments', {
-        'task-1': [
-          {
-            id: 'c1',
-            taskId: 'task-1',
-            authorName: 'Друг 1',
-            text: 'Где тут найти чистое небо?))',
-            createdAt: '12:30',
-          },
-          {
-            id: 'c2',
-            taskId: 'task-1',
-            authorName: 'Друг 5',
-            text: 'Выйди на улицу или балкон!',
-            createdAt: '12:45',
-          },
-        ],
-        'task-feed-1': [
-          {
-            id: 'c-f1',
-            taskId: 'task-feed-1',
-            authorName: 'Алексей',
-            text: 'Отличный ракурс капель воды!',
-            createdAt: '11:20',
-          },
-          {
-            id: 'c-f2',
-            taskId: 'task-feed-1',
-            authorName: 'Дмитрий',
-            text: 'Красиво получилось 👍',
-            createdAt: '11:25',
-          },
-        ],
-        'task-2': [
-          {
-            id: 'c-2-1',
-            taskId: 'task-2',
-            authorName: 'Мария',
-            text: 'Это где такая улица?',
-            createdAt: '14:35',
-          },
-          {
-            id: 'c-2-2',
-            taskId: 'task-2',
-            authorName: 'Алексей',
-            text: 'Рядом с универом)',
-            createdAt: '14:40',
-          },
-        ],
-      });
-
+      const localMap = LocalStore.get<Record<string, TaskComment[]>>('app_comments', {});
       const localList = localMap[taskId] || [];
 
       // 1. Proxmox Backend
@@ -826,23 +778,17 @@ export const api = {
   },
 
   chat: {
-    // Получить список зарегистрированных пользователей для выбора друга
+    // Получить список зарегистрированных пользователей для выбора собеседника
     async getUsers(): Promise<UserSummary[]> {
       if (isCustomBackendConfigured) {
         const res = await safeFetchJson<UserSummary[]>(`${customApiUrl}/api/users`, {
           headers: getAuthHeaders(),
         });
-        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.ok && Array.isArray(res.data)) {
           return res.data;
         }
       }
-      return [
-        { id: 'u-1', name: 'Друг 1', email: 'friend1@example.com' },
-        { id: 'u-2', name: 'Друг 2', email: 'friend2@example.com' },
-        { id: 'u-3', name: 'Алексей', email: 'alex@example.com' },
-        { id: 'u-4', name: 'Мария', email: 'maria@example.com' },
-        { id: 'u-5', name: 'Друг 5', email: 'friend5@example.com' },
-      ];
+      return [];
     },
 
     async createConversation(friendId?: string, friendName?: string): Promise<ConversationItem> {
@@ -965,17 +911,7 @@ export const api = {
       }
 
       // 3. Локальный режим
-      return localList.length > 0 ? localList : [
-        {
-          id: `m-init-${chatId}`,
-          chatId,
-          senderId: 'friend',
-          senderName: 'Друг',
-          text: 'Привет! Какое сегодня задание на фото?',
-          timeText: '12:00',
-          isOutgoing: false,
-        },
-      ];
+      return localList;
     },
 
     async sendMessage(chatId: string, text: string, photoUrl?: string): Promise<ChatMessage> {
@@ -1144,6 +1080,26 @@ export const api = {
   notifications: {
     async getNotifications(): Promise<AppNotification[]> {
       return LocalStore.get<AppNotification[]>('app_notifications', INITIAL_NOTIFICATIONS);
+    },
+    async clearNotifications(): Promise<void> {
+      LocalStore.set('app_notifications', []);
+    },
+    async markAsRead(id: string): Promise<void> {
+      const list = LocalStore.get<AppNotification[]>('app_notifications', INITIAL_NOTIFICATIONS);
+      const updated = list.map((n) => (n.id === id ? { ...n, read: true } : n));
+      LocalStore.set('app_notifications', updated);
+    },
+    async addNotification(notif: { title: string; description: string }): Promise<AppNotification> {
+      const list = LocalStore.get<AppNotification[]>('app_notifications', INITIAL_NOTIFICATIONS);
+      const newN: AppNotification = {
+        id: `notif-${Date.now()}`,
+        title: notif.title,
+        description: notif.description,
+        timeText: 'только что',
+        read: false,
+      };
+      LocalStore.set('app_notifications', [newN, ...list]);
+      return newN;
     },
   },
 };

@@ -90,12 +90,12 @@ export const PostsFeedScreen: React.FC<PostsFeedScreenProps> = ({
   return (
     <div className="flex flex-col gap-4 py-2 animate-in fade-in duration-200">
       {/* Баннер ленты */}
-      <div className="bg-[#c6baf9] dark:bg-[#2e1d61] text-stone-900 dark:text-stone-100 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-md flex items-center justify-between">
+      <div className="bg-white text-stone-900 border border-slate-200 dark:bg-[#2e1d61] dark:text-stone-100 dark:border-purple-600/30 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-sm flex items-center justify-between">
         <span className="flex-1 text-center">Лента выполненных заданий</span>
       </div>
 
       {completedPosts.length === 0 ? (
-        <div className="bg-white/90 dark:bg-[#141418] rounded-3xl p-8 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-purple-100 dark:border-white/10 shadow flex flex-col items-center gap-3 animate-pop-in">
+        <div className="bg-white dark:bg-[#141418] rounded-3xl p-8 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-slate-200 dark:border-white/10 shadow-sm flex flex-col items-center gap-3 animate-pop-in">
           <div className="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950 text-[#5516ea] dark:text-purple-300 flex items-center justify-center">
             <Sparkles size={24} />
           </div>
@@ -126,7 +126,7 @@ export const PostsFeedScreen: React.FC<PostsFeedScreenProps> = ({
             return (
               <div
                 key={post.id}
-                className="bg-white dark:bg-[#141418] rounded-3xl p-4 shadow-xl border border-purple-100 dark:border-white/10 flex flex-col gap-3 transition hover:shadow-2xl animate-fade-in"
+                className="bg-white dark:bg-[#141418] rounded-3xl p-4 shadow-sm border border-slate-200 dark:border-white/10 flex flex-col gap-3 transition hover:shadow-md animate-fade-in"
               >
                 {/* Хедер поста: Автор, Дата, Бейдж статуса */}
                 <div className="flex items-center justify-between">

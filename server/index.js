@@ -24,6 +24,26 @@ app.use(express.json({ limit: '25mb' }));
 // Раздача статического лендинг-сайта
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Явная отдача главной страницы сайта
+app.get('/', (req, res) => {
+  const htmlPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(htmlPath)) {
+    return res.sendFile(htmlPath);
+  }
+  return res.status(200).send('<!DOCTYPE html><html><body style="background:#09090b;color:#fff;font-family:sans-serif;padding:2rem;"><h1>Фото-Квесты API</h1><p>Сервер запущен и работает на порту ' + PORT + '</p></body></html>');
+});
+
+// Проверка статуса сервера
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    server: 'Proxmox Node / Tailscale',
+    challenges_count: PHOTO_CHALLENGES.length,
+  });
+});
+
 const io = new Server(server, {
   cors: {
     origin: '*',

@@ -47,18 +47,16 @@ jobs:
 
       - name: Build Debug APK
         run: |
+          set -e -o pipefail
           cd android
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-build.log || {
-            echo "### Gradle Build Failure Log" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 80 gradle-build.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          }
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          echo "=== Found APK files ==="
+          find app/build/outputs/apk -name "*.apk"
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PhotoKvest-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

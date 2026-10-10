@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Фото-Квесты</string>
+    <string name="title_activity_main">Фото-Квесты</string>
+    <string name="package_name">com.photokvest.app</string>
+    <string name="custom_url_scheme">com.photokvest.app</string>
+</resources>

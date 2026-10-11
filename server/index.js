@@ -24,6 +24,44 @@ app.use(express.json({ limit: '25mb' }));
 // Раздача статического лендинг-сайта
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Оптимизированная отдача APK приложения (с поддержкой Range, возобновления загрузки и прямым стримингом)
+app.get(['/silverfish.apk', '/download/apk', '/silverfish-v3.9.apk'], (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'silverfish.apk');
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('APK файл не найден');
+  }
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', 'attachment; filename="silverfish-v3.9.apk"');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunksize = (end - start) + 1;
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': 'application/vnd.android.package-archive',
+    });
+    fs.createReadStream(filePath, { start, end }).pipe(res);
+  } else {
+    res.writeHead(200, {
+      'Content-Length': fileSize,
+      'Accept-Ranges': 'bytes',
+      'Content-Type': 'application/vnd.android.package-archive',
+    });
+    fs.createReadStream(filePath).pipe(res);
+  }
+});
+
 // Явная отдача главной страницы сайта
 app.get('/', (req, res) => {
   const htmlPath = path.join(__dirname, 'public', 'index.html');

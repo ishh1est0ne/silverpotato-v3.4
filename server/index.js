@@ -53,7 +53,7 @@ const io = new Server(server, {
 
 // Настройка подключения к PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:secretpassword@localhost:5432/maniyak',
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:secretpassword@100.106.175.106:5432/maniyak',
 });
 
 // Карта онлайн-пользователей: userId -> { socketId, userName, lastSeen }

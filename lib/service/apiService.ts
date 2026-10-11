@@ -2,8 +2,20 @@ import { io, Socket } from 'socket.io-client';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { User, TaskItem, TaskComment, ConversationItem, ChatMessage, AppNotification, UserSummary } from '../types';
 
-export const customApiUrl =
-  process.env.NEXT_PUBLIC_API_URL || 'http://100.106.175.106:4000';
+const resolveApiUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:4000';
+    }
+    if (host) {
+      return `http://${host}:4000`;
+    }
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+};
+
+export const customApiUrl = resolveApiUrl();
 export const isCustomBackendConfigured = Boolean(
   customApiUrl && customApiUrl.startsWith('http')
 );

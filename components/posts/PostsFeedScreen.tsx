@@ -131,15 +131,23 @@ export const PostsFeedScreen: React.FC<PostsFeedScreenProps> = ({
                 {/* Хедер поста: Автор, Дата, Бейдж статуса */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#5516ea] to-[#8d61f7] text-white flex items-center justify-center text-sm font-bold font-mono shadow-sm">
-                      {post.authorName.charAt(0).toUpperCase()}
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#5516ea] to-[#8d61f7] text-white flex items-center justify-center text-sm font-bold font-mono shadow-sm overflow-hidden shrink-0">
+                      {post.authorAvatarUrl ? (
+                        <img src={post.authorAvatarUrl} alt={post.authorName} className="w-full h-full object-cover" />
+                      ) : (
+                        post.authorName.charAt(0).toUpperCase()
+                      )}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="font-bold text-stone-900 dark:text-stone-100 text-sm leading-tight">
                           {post.authorName}
                         </span>
-                        <Badge label="Автор" variant="lightPurple" />
+                        {post.authorUsername && (
+                          <span className="text-[10px] font-mono text-[#5516ea] dark:text-purple-400 font-semibold">
+                            @{post.authorUsername.replace(/^@+/, '')}
+                          </span>
+                        )}
                       </div>
                       <span className="text-[11px] font-sans text-stone-400 dark:text-stone-500">
                         {post.completedAt || post.dateText}

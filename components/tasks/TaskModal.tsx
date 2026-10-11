@@ -258,7 +258,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               className="w-full py-2.5 rounded-2xl border border-rose-300 dark:border-rose-900/70 bg-rose-50/50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 font-mono text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95 hover:bg-rose-100 disabled:opacity-50"
             >
               <Zap size={14} />
-              <span>{isAdminExpiring ? 'Завершение...' : '⚡ Завершить дедлайн сейчас (Admin)'}</span>
+              <span>{isAdminExpiring ? 'Завершение...' : 'Завершить дедлайн сейчас (Admin)'}</span>
             </button>
           )}
         </div>

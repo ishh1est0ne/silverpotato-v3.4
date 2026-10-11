@@ -63,7 +63,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       <InputField
         type="text"
-        placeholder="Логин или e-mail (например admin)"
+        placeholder="Логин (@юзернейм или e-mail, например admin)"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         leftIcon={<Mail size={20} />}

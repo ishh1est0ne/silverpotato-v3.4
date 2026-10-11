@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User as UserIcon, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, Eye, EyeOff, AtSign } from 'lucide-react';
 import { InputField } from '../ui/InputField';
 import { PillButton } from '../ui/PillButton';
 import { api } from '@/lib/service/apiService';
@@ -17,6 +17,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
   onNavigateToLogin,
 }) => {
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +29,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
     triggerHaptic('light');
 
     if (!name || !email || !password) {
-      setError('Заполните все поля');
+      setError('Заполните обязательные поля');
       triggerHaptic('warning');
       return;
     }
@@ -41,7 +42,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
     setIsLoading(true);
 
     try {
-      await api.auth.signUp(name, email, password);
+      await api.auth.signUp(name, email, password, username);
       await triggerHaptic('success');
       onSuccess(email);
     } catch (err: unknown) {
@@ -62,6 +63,14 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
         onChange={(e) => setName(e.target.value)}
         leftIcon={<UserIcon size={20} />}
         required
+      />
+
+      <InputField
+        type="text"
+        placeholder="Юзернейм (@username, опционально)"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        leftIcon={<AtSign size={20} />}
       />
 
       <InputField

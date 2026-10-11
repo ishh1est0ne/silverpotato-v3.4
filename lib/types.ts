@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   name: string;
+  username?: string;
   email: string;
   role?: 'admin' | 'user';
   avatarUrl?: string;
@@ -12,6 +13,7 @@ export interface User {
 export interface UserSummary {
   id: string;
   name: string;
+  username?: string;
   email?: string;
   avatarUrl?: string;
   role?: string;
@@ -33,6 +35,8 @@ export interface TaskItem {
   id: string;
   title: string;
   authorName: string;
+  authorUsername?: string;
+  authorAvatarUrl?: string;
   userId?: string;
   dateText: string;
   prompt: string;
@@ -52,6 +56,8 @@ export interface TaskComment {
   id: string;
   taskId: string;
   authorName: string;
+  authorUsername?: string;
+  authorAvatarUrl?: string;
   userId?: string;
   text: string;
   createdAt: string;
@@ -61,6 +67,8 @@ export interface ConversationItem {
   id: string;
   friendId: string;
   friendName: string;
+  friendUsername?: string;
+  friendAvatarUrl?: string;
   user1Id?: string;
   user2Id?: string;
   dateText: string;

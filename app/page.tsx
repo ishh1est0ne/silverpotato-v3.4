@@ -26,7 +26,7 @@ import { SettingsModal } from '@/components/settings/SettingsModal';
 import { TaskItem, ConversationItem, User } from '@/lib/types';
 import { api } from '@/lib/service/apiService';
 import { triggerHaptic, sendLocalPush } from '@/lib/native';
-import { Smartphone, Monitor, Plus, MessageSquarePlus, Zap, Sliders, Shield } from 'lucide-react';
+import { Smartphone, Monitor, Plus, MessageSquarePlus, Zap, Sliders, Shield, AlertCircle } from 'lucide-react';
 
 export default function App() {
   // Режим экрана: авторизация или главное приложение
@@ -130,7 +130,7 @@ export default function App() {
     const unsubscribe = api.tasks.onNewChallenge((newTask) => {
       if (receiveTasksEnabled) {
         triggerHaptic('medium');
-        sendLocalPush('⚡ Новое задание дня!', newTask.prompt);
+        sendLocalPush('Новое задание дня', newTask.prompt);
         setTasks((prev) => [newTask, ...prev.filter((t) => t.id !== newTask.id)]);
       }
     });
@@ -140,7 +140,7 @@ export default function App() {
         try {
           const drop = await api.tasks.triggerDailyDrop(1);
           await triggerHaptic('medium');
-          await sendLocalPush('⚡ Новое задание дня (15 мин)!', drop.prompt);
+          await sendLocalPush('Новое задание дня (15 мин)', drop.prompt);
           setTasks((prev) => [drop, ...prev.filter((t) => t.id !== drop.id)]);
         } catch (e) {
           console.warn('Ошибка периодического дропа:', e);
@@ -209,7 +209,7 @@ export default function App() {
     try {
       const dropTask = await api.tasks.triggerDailyDrop(1);
       await triggerHaptic('success');
-      await sendLocalPush('⚡ Новое задание дня!', dropTask.prompt);
+      await sendLocalPush('Новое задание дня', dropTask.prompt);
       setTasks((prev) => [dropTask, ...prev]);
     } catch (e) {
       console.error('Ошибка вызова дропа:', e);
@@ -226,7 +226,7 @@ export default function App() {
     try {
       const selfTask = await api.tasks.takeSelfTask();
       await triggerHaptic('success');
-      await sendLocalPush('⚡ Досрочное задание получено!', selfTask.prompt);
+      await sendLocalPush('Досрочное задание получено', selfTask.prompt);
       setTasks((prev) => [selfTask, ...prev]);
 
       if (currentUser) {
@@ -362,7 +362,7 @@ export default function App() {
             <div className="flex flex-col gap-3 py-2 animate-fade-in">
               {!receiveTasksEnabled && (
                 <div className="bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 text-[11px] font-mono px-3 py-1.5 rounded-xl flex items-center justify-between border border-amber-200 dark:border-amber-800">
-                  <span>⚠️ Получение заданий выключено</span>
+                  <span className="flex items-center gap-1.5"><AlertCircle size={13} /> Получение заданий выключено</span>
                   <button
                     type="button"
                     onClick={() => handleReceiveTasksChange(true)}
@@ -393,7 +393,7 @@ export default function App() {
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
-                  <span>🎯 Задания дня</span>
+                  <span>Задания дня</span>
                 </button>
                 <button
                   type="button"
@@ -411,7 +411,7 @@ export default function App() {
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
-                  <span>📸 Лента постов</span>
+                  <span>Лента постов</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-sans font-semibold ${
                       taskSubView === 'feed'
@@ -463,7 +463,7 @@ export default function App() {
                       className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 hover:brightness-105 active:scale-[0.98] text-stone-900 rounded-2xl font-mono text-xs font-bold shadow-md flex items-center justify-center gap-2 cursor-pointer transition disabled:opacity-50"
                     >
                       <Zap size={16} className="fill-stone-900" />
-                      {isDropping ? 'Генерация задания...' : '⚡ Случайный дроп дня (BeReal)'}
+                      {isDropping ? 'Генерация задания...' : 'Случайный дроп дня (BeReal)'}
                     </button>
 
                     {/* Досрочное взятие задания (максимум 2 раза в день) */}

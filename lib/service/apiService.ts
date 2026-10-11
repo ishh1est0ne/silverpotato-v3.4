@@ -151,7 +151,7 @@ function getSocket(): Socket | null {
       reconnectionAttempts: 5,
     });
     socketInstance.on('connect', () => {
-      console.log('⚡ Socket.io подключен к Proxmox серверу:', socketInstance?.id);
+      console.log('[Socket] Socket.io подключен к серверу:', socketInstance?.id);
     });
   }
   return socketInstance;
@@ -212,25 +212,48 @@ export const api = {
     },
 
     async signIn(email: string, pass: string): Promise<User> {
+      const cleanLogin = email.trim().toLowerCase().replace(/^@+/, '');
+
       // 1. Proxmox Backend
       if (isCustomBackendConfigured) {
-        const res = await safeFetchJson<{ user: User; token: string; error?: string }>(
-          `${customApiUrl}/api/auth/login`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass }),
+        try {
+          const res = await safeFetchJson<{ user: User; token: string; error?: string }>(
+            `${customApiUrl}/api/auth/login`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cleanLogin, password: pass }),
+            }
+          );
+          if (res.ok && res.data?.user) {
+            const user: User = { ...res.data.user, token: res.data.token };
+            LocalStore.set('app_token', res.data.token);
+            LocalStore.set('app_user', user);
+            return user;
           }
-        );
-        if (res.ok && res.data?.user) {
-          const user: User = { ...res.data.user, token: res.data.token };
-          LocalStore.set('app_token', res.data.token);
-          LocalStore.set('app_user', user);
-          return user;
+          if (!res.ok && res.error && cleanLogin !== 'admin') {
+            throw new Error(res.error);
+          }
+        } catch (e) {
+          if (cleanLogin !== 'admin') {
+            throw e;
+          }
         }
-        if (!res.ok && res.error) {
-          throw new Error(res.error);
-        }
+      }
+
+      // Гарантированный аккаунт администратора admin / admin
+      if (cleanLogin === 'admin' && pass === 'admin') {
+        const adminUser: User = {
+          id: 'admin',
+          name: 'admin',
+          username: 'admin',
+          email: 'admin@system.local',
+          role: 'admin',
+          token: 'admin-fallback-token',
+        };
+        LocalStore.set('app_token', 'admin-fallback-token');
+        LocalStore.set('app_user', adminUser);
+        return adminUser;
       }
 
       // 2. Supabase
@@ -245,6 +268,7 @@ export const api = {
           id: u.id,
           email: u.email || email,
           name: u.user_metadata?.name || email.split('@')[0],
+          username: u.user_metadata?.username || email.split('@')[0],
         };
         LocalStore.set('app_user', user);
         return user;
@@ -252,15 +276,22 @@ export const api = {
 
       // 3. Локальный режим
       const mockUser: User = {
-        id: 'user-current',
+        id: `user-${Date.now()}`,
         name: email.split('@')[0] || 'Пользователь',
-        email,
+        username: cleanLogin,
+        email: email.includes('@') ? email : `${email}@app.local`,
       };
       LocalStore.set('app_user', mockUser);
       return mockUser;
     },
 
-    async signUp(name: string, email: string, pass: string): Promise<User> {
+    async signUp(name: string, email: string, pass: string, username?: string): Promise<User> {
+      const cleanUsername = (username || name || email.split('@')[0])
+        .trim()
+        .toLowerCase()
+        .replace(/^@+/, '')
+        .replace(/[^a-z0-9_]/gi, '');
+
       // 1. Proxmox Backend
       if (isCustomBackendConfigured) {
         const res = await safeFetchJson<{ user: User; token: string; error?: string }>(
@@ -268,7 +299,7 @@ export const api = {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password: pass }),
+            body: JSON.stringify({ name: name.trim(), username: cleanUsername, email: email.trim(), password: pass }),
           }
         );
         if (res.ok && res.data?.user) {
@@ -287,7 +318,7 @@ export const api = {
         const { data, error } = await supabase.auth.signUp({
           email,
           password: pass,
-          options: { data: { name } },
+          options: { data: { name, username: cleanUsername } },
         });
         if (error) throw error;
         const u = data.user;
@@ -295,6 +326,7 @@ export const api = {
           id: u?.id || 'new-user',
           email,
           name,
+          username: cleanUsername,
         };
         LocalStore.set('app_user', user);
         return user;
@@ -303,8 +335,9 @@ export const api = {
       // 3. Локальный режим
       const mockUser: User = {
         id: `user-${Date.now()}`,
-        name,
-        email,
+        name: name.trim(),
+        username: cleanUsername,
+        email: email.trim(),
       };
       LocalStore.set('app_user', mockUser);
       return mockUser;
@@ -347,7 +380,7 @@ export const api = {
       // 3. Локальный режим (демо-токен)
       const token = `local-token-${Date.now()}`;
       LocalStore.set('app_reset_token', token);
-      console.log(`🔑 [ДЕМО СБРОС] Токен для ${email}: ${token}`);
+      console.log(`[Reset] Демо-токен для ${email}: ${token}`);
       return { sent: false, demoToken: token };
     },
 
@@ -388,15 +421,34 @@ export const api = {
     },
 
     async updateName(newName: string): Promise<User> {
+      return this.updateProfile({ name: newName });
+    },
+
+    async updateProfile(updates: { name?: string; username?: string; avatarUrl?: string }): Promise<User> {
       const current = LocalStore.get<User | null>('app_user', null);
-      const updated: User = { ...(current || { id: 'user-current', email: '' }), name: newName };
+      const cleanUsername = updates.username ? updates.username.trim().toLowerCase().replace(/^@+/, '').replace(/[^a-z0-9_]/gi, '') : undefined;
+      const updated: User = {
+        ...(current || { id: 'user-current', name: 'Пользователь', email: '' }),
+        ...(updates.name ? { name: updates.name.trim() } : {}),
+        ...(cleanUsername ? { username: cleanUsername } : {}),
+        ...(updates.avatarUrl !== undefined ? { avatarUrl: updates.avatarUrl } : {}),
+      };
       LocalStore.set('app_user', updated);
       if (isCustomBackendConfigured) {
-        await safeFetchJson(`${customApiUrl}/api/auth/profile`, {
+        const payload: Record<string, string | undefined> = {};
+        if (updates.name) payload.name = updates.name.trim();
+        if (cleanUsername) payload.username = cleanUsername;
+        if (updates.avatarUrl !== undefined) payload.avatarUrl = updates.avatarUrl;
+        const res = await safeFetchJson<{ ok: boolean; user?: User }>(`${customApiUrl}/api/auth/profile`, {
           method: 'PUT',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ name: newName }),
+          body: JSON.stringify(payload),
         });
+        if (res.ok && res.data?.user) {
+          const merged = { ...updated, ...res.data.user };
+          LocalStore.set('app_user', merged);
+          return merged;
+        }
       }
       return updated;
     },
@@ -556,7 +608,7 @@ export const api = {
 
       const dropTask: TaskItem = {
         id: `task-drop-${Date.now()}`,
-        title: '⚡ Задание дня',
+        title: 'Задание дня',
         authorName: 'Система',
         dateText: 'Сегодня',
         prompt: randomPrompt,
@@ -586,7 +638,7 @@ export const api = {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
-              title: '⚡ Задание дня',
+              title: 'Задание дня',
               prompt: randomPrompt,
               deadlineText,
               authorName: 'Система',
@@ -617,7 +669,7 @@ export const api = {
 
       const selfTask: TaskItem = {
         id: `task-self-${Date.now()}`,
-        title: '⚡ Досрочное задание',
+        title: 'Досрочное задание',
         authorName: 'Я',
         dateText: 'Сегодня',
         prompt: randomPrompt,
@@ -779,9 +831,12 @@ export const api = {
 
   chat: {
     // Получить список зарегистрированных пользователей для выбора собеседника
-    async getUsers(): Promise<UserSummary[]> {
+    async getUsers(searchQuery?: string): Promise<UserSummary[]> {
       if (isCustomBackendConfigured) {
-        const res = await safeFetchJson<UserSummary[]>(`${customApiUrl}/api/users`, {
+        const url = searchQuery && searchQuery.trim()
+          ? `${customApiUrl}/api/users?q=${encodeURIComponent(searchQuery.trim())}`
+          : `${customApiUrl}/api/users`;
+        const res = await safeFetchJson<UserSummary[]>(url, {
           headers: getAuthHeaders(),
         });
         if (res.ok && Array.isArray(res.data)) {
@@ -791,15 +846,18 @@ export const api = {
       return [];
     },
 
-    async createConversation(friendId?: string, friendName?: string): Promise<ConversationItem> {
+    async createConversation(friendId?: string, friendName?: string, friendUsername?: string): Promise<ConversationItem> {
       let finalId = friendId;
       let finalName = friendName;
-      if (!friendName && friendId) {
+      let finalUsername = friendUsername;
+      if (!friendName && friendId && !friendId.startsWith('friend-') && isNaN(Number(friendId))) {
+        finalUsername = friendId.replace(/^@+/, '');
         finalName = friendId;
         finalId = undefined;
       }
-      const safeFriendName = finalName || 'Друг';
+      const safeFriendName = finalName || (finalUsername ? `@${finalUsername}` : 'Друг');
       const safeFriendId = finalId || `friend-${Date.now()}`;
+      const currentUser = LocalStore.get<User | null>('app_user', null);
 
       const now = new Date();
       const dateText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -810,9 +868,14 @@ export const api = {
         const res = await safeFetchJson<ConversationItem>(`${customApiUrl}/api/conversations`, {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ friendId: finalId, friendName: safeFriendName }),
+          body: JSON.stringify({ friendId: finalId, friendName: safeFriendName, friendUsername: finalUsername }),
         });
         if (res.ok && res.data) {
+          if (currentUser?.id) {
+            const userKey = `app_conversations_${currentUser.id}`;
+            const existing = LocalStore.get<ConversationItem[]>(userKey, []);
+            LocalStore.set(userKey, [res.data, ...existing.filter((c) => c.id !== res.data!.id)]);
+          }
           return res.data;
         }
       }
@@ -832,6 +895,7 @@ export const api = {
           id,
           friendId: safeFriendId,
           friendName: safeFriendName,
+          friendUsername: finalUsername,
           dateText,
           timeText,
           lastMessage: 'Чат создан',
@@ -844,30 +908,33 @@ export const api = {
         id: `conv-${Date.now()}`,
         friendId: safeFriendId,
         friendName: safeFriendName,
+        friendUsername: finalUsername,
         dateText,
         timeText,
         lastMessage: 'Чат создан',
         unread: false,
       };
 
-      const convs = LocalStore.get<ConversationItem[]>('app_conversations', INITIAL_CONVERSATIONS);
-      LocalStore.set('app_conversations', [newConv, ...convs]);
+      const userKey = currentUser?.id ? `app_conversations_${currentUser.id}` : 'app_conversations';
+      const convs = LocalStore.get<ConversationItem[]>(userKey, []);
+      LocalStore.set(userKey, [newConv, ...convs]);
       return newConv;
     },
 
     async getConversations(): Promise<ConversationItem[]> {
-      const localConvs = LocalStore.get<ConversationItem[]>('app_conversations', INITIAL_CONVERSATIONS);
+      const currentUser = LocalStore.get<User | null>('app_user', null);
+      const userKey = currentUser?.id ? `app_conversations_${currentUser.id}` : 'app_conversations';
 
       // 1. Proxmox Backend
       if (isCustomBackendConfigured) {
         const res = await safeFetchJson<ConversationItem[]>(`${customApiUrl}/api/conversations`, {
           headers: getAuthHeaders(),
         });
-        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
-          const map = new Map<string, ConversationItem>();
-          for (const c of localConvs) map.set(c.id, c);
-          for (const c of res.data) map.set(c.id, c);
-          return Array.from(map.values());
+        if (res.ok && Array.isArray(res.data)) {
+          if (currentUser?.id) {
+            LocalStore.set(userKey, res.data);
+          }
+          return res.data;
         }
       }
 
@@ -877,8 +944,9 @@ export const api = {
         if (!error && data && data.length > 0) return data;
       }
 
-      // 3. Локальный режим
-      return localConvs;
+      // 3. Локальный режим (только для текущего пользователя)
+      if (!currentUser) return [];
+      return LocalStore.get<ConversationItem[]>(userKey, []);
     },
 
     async getMessages(chatId: string): Promise<ChatMessage[]> {
@@ -892,11 +960,10 @@ export const api = {
         });
         if (res.ok && Array.isArray(res.data)) {
           const currentUser = LocalStore.get<User | null>('app_user', null);
-          const mapped = res.data.map((m) => ({
+          return res.data.map((m) => ({
             ...m,
-            isOutgoing: currentUser ? String(m.senderId) === String(currentUser.id) : m.isOutgoing,
+            isOutgoing: currentUser ? String(m.senderId) === String(currentUser.id) : Boolean(m.isOutgoing),
           }));
-          if (mapped.length > 0) return mapped;
         }
       }
 

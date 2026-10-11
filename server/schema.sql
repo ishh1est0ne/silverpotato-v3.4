@@ -6,6 +6,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    username VARCHAR(50),
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user',
@@ -17,10 +18,12 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Безопасные миграции для существующих таблиц
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_tasks_count INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_tasks_date VARCHAR(20) DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- 2. Токены сброса пароля (срок действия 1 час)
 CREATE TABLE IF NOT EXISTS password_resets (

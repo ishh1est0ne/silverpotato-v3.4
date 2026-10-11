@@ -72,11 +72,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     const tempId = `temp-${Date.now()}`;
     const now = new Date();
     const timeText = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const currentUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('app_user') || 'null') : null;
     const optimisticMsg: ChatMessage = {
       id: tempId,
       chatId: conversation.id,
-      senderId: 'current-user',
-      senderName: 'Я',
+      senderId: currentUser?.id || 'current-user',
+      senderName: currentUser?.name || 'Я',
       text,
       timeText,
       status: 'sending',
@@ -171,8 +172,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           <ArrowLeft size={20} />
         </button>
 
-        <div className="flex-1 bg-white text-stone-900 border border-slate-200 dark:bg-[#2d1b69] dark:text-stone-100 dark:border-purple-600/30 font-mono text-center py-2.5 px-4 rounded-xl font-bold shadow-md truncate">
-          {`Чат: ${conversation.friendName}`}
+        <div className="flex-1 bg-white dark:bg-[#141418] text-stone-900 dark:text-stone-100 border border-slate-200 dark:border-white/10 font-mono py-2 px-3 rounded-2xl font-bold shadow-xs flex items-center gap-2.5 truncate">
+          <div className="w-8 h-8 rounded-full bg-[#5516ea] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-purple-200 dark:border-purple-800">
+            {conversation.friendAvatarUrl ? (
+              <img src={conversation.friendAvatarUrl} alt={conversation.friendName} className="w-full h-full object-cover" />
+            ) : (
+              conversation.friendName ? conversation.friendName.charAt(0).toUpperCase() : '?'
+            )}
+          </div>
+          <div className="text-left truncate leading-tight">
+            <div className="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">{conversation.friendName}</div>
+            {conversation.friendUsername && (
+              <div className="text-[10px] text-[#5516ea] dark:text-purple-400 font-semibold truncate">@{conversation.friendUsername.replace(/^@+/, '')}</div>
+            )}
+          </div>
         </div>
       </div>
 

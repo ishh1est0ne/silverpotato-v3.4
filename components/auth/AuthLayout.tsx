@@ -58,11 +58,16 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title }) => {
 
       {/* Основной контент */}
       <div className="relative z-10 w-full max-w-sm mx-auto flex-1 flex flex-col justify-center px-8 py-10 animate-fade-in">
-        <div className="mb-6">
-          <h1 className="font-bold text-3xl font-mono text-stone-900 dark:text-stone-100 uppercase tracking-wider">
-            {title}
-          </h1>
-          <div className="w-12 h-1 bg-[#5b25e8] dark:bg-purple-500 rounded-full mt-2" />
+        <div className="mb-6 flex flex-col items-start gap-3">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-sm border border-purple-200 dark:border-purple-800/50 bg-white dark:bg-[#181822] p-1 flex items-center justify-center">
+            <img src="/logo.png" alt="Silverfish Logo" className="w-full h-full object-contain rounded-xl" />
+          </div>
+          <div>
+            <h1 className="font-bold text-3xl font-mono text-stone-900 dark:text-stone-100 uppercase tracking-wider">
+              {title}
+            </h1>
+            <div className="w-12 h-1 bg-[#5b25e8] dark:bg-purple-500 rounded-full mt-2" />
+          </div>
         </div>
 
         {children}

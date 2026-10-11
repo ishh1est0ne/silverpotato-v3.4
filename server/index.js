@@ -142,23 +142,31 @@ async function cleanLegacyAndSetupAdmin() {
       console.log('[Admin] Аккаунт администратора синхронизирован: admin / admin');
     }
 
-    // Проверяем наличие одного чистого выполненного задания у администратора
-    const adminTaskCheck = await pool.query('SELECT id FROM tasks WHERE user_id = $1', [adminId]);
-    if (adminTaskCheck.rows.length === 0) {
+    // Гарантируем РОВНО ОДИН выполненный пост от администратора (без дублей)
+    const adminTasks = await pool.query('SELECT id FROM tasks WHERE user_id = $1 OR author_name = $2 ORDER BY created_at DESC', [adminId, 'admin']);
+    if (adminTasks.rows.length === 0) {
       const now = new Date();
       const dateText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
       await pool.query(
         `INSERT INTO tasks (id, user_id, title, author_name, prompt, date_text, deadline_text, is_completed, comment_count, completed_photo_url, completed_at)
          VALUES ($1, $2, 'Задание дня', 'admin', 'Сфотографируй закат или вечернее небо', $3, 'Выполнено', true, 1, $4, $5)`,
         [
-          `task-admin-${Date.now()}`,
+          `task-admin-single`,
           adminId,
           dateText,
           'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&auto=format&fit=crop&q=80',
           'Вчера, 19:40',
         ]
       );
+    } else if (adminTasks.rows.length > 1) {
+      const keepId = adminTasks.rows[0].id;
+      const removeIds = adminTasks.rows.slice(1).map((r) => r.id);
+      await pool.query('DELETE FROM tasks WHERE id = ANY($1)', [removeIds]);
+      console.log(`[Admin] Удалено ${removeIds.length} дубликатов постов администратора, сохранен ${keepId}`);
     }
+
+    // Удаляем все просроченные невыполненные задания
+    await pool.query('DELETE FROM tasks WHERE (expires_at < NOW() AND is_completed = false) OR is_failed = true;');
   } catch (err) {
     console.debug('Legacy cleanup notice:', err.message);
   }

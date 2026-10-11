@@ -483,14 +483,26 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Список карточек заданий */}
+                  {/* Список карточек заданий: только активные и непросроченные */}
                   <div className="flex flex-col gap-3.5">
-                    {tasks.length === 0 ? (
-                      <div className="bg-white dark:bg-[#141418] rounded-3xl p-6 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-slate-200 dark:border-white/10 shadow-sm animate-pop-in">
-                        Заданий не найдено
-                      </div>
-                    ) : (
-                      tasks.map((task) => (
+                    {(() => {
+                      const activeTasks = tasks.filter((t) => {
+                        if (t.isCompleted) return false;
+                        if (t.isFailed) return false;
+                        if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) return false;
+                        return true;
+                      });
+
+                      if (activeTasks.length === 0) {
+                        return (
+                          <div className="bg-white dark:bg-[#141418] rounded-3xl p-6 text-center text-stone-500 dark:text-stone-400 font-mono text-sm border border-slate-200 dark:border-white/10 shadow-sm animate-pop-in flex flex-col items-center gap-1.5">
+                            <span className="font-bold text-stone-800 dark:text-stone-200">Нет активных заданий</span>
+                            <span className="text-xs text-stone-400">Нажмите «Случайный дроп дня» или возьмите задание досрочно</span>
+                          </div>
+                        );
+                      }
+
+                      return activeTasks.map((task) => (
                         <TaskCard
                           key={task.id}
                           task={task}
@@ -503,8 +515,8 @@ export default function App() {
                             setSelectedTaskForComments(t);
                           }}
                         />
-                      ))
-                    )}
+                      ));
+                    })()}
                   </div>
                 </>
               )}

@@ -520,26 +520,30 @@ export const api = {
         }
       }
 
-      // Объединяем задачи сервера и локального хранилища, чтобы локальные задания и выполненные фото никогда не пропадали
-      const map = new Map<string, TaskItem>();
-      for (const t of localTasks) {
-        map.set(t.id, t);
-      }
-      for (const t of serverTasks) {
-        const local = map.get(t.id);
-        if (local && local.isCompleted && !t.isCompleted) {
-          map.set(t.id, {
-            ...t,
-            isCompleted: true,
-            completedPhotoUrl: local.completedPhotoUrl,
-            completedAt: local.completedAt,
-          });
-        } else {
-          map.set(t.id, t);
-        }
+      let list: TaskItem[] = [];
+
+      if (isCustomBackendConfigured && serverTasks.length > 0) {
+        // Сервер — единственный источник истины, обновляем локальный кэш
+        LocalStore.set('app_tasks', serverTasks);
+        list = serverTasks;
+      } else if (serverTasks.length > 0) {
+        list = serverTasks;
+      } else {
+        list = localTasks;
       }
 
-      let list = Array.from(map.values());
+      // Дедупликация по ID и одинаковым текстам постов
+      const seen = new Set<string>();
+      list = list.filter((t) => {
+        const uniqueKey = `${t.authorName.toLowerCase()}-${t.prompt.trim()}`;
+        if (seen.has(t.id) || seen.has(uniqueKey)) {
+          return false;
+        }
+        seen.add(t.id);
+        seen.add(uniqueKey);
+        return true;
+      });
+
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase().replace(/^#/, '');
         list = list.filter(

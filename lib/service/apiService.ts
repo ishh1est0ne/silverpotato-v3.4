@@ -1,18 +1,41 @@
 import { io, Socket } from 'socket.io-client';
+import { Capacitor } from '@capacitor/core';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { User, TaskItem, TaskComment, ConversationItem, ChatMessage, AppNotification, UserSummary } from '../types';
 
 const resolveApiUrl = (): string => {
   if (typeof window !== 'undefined') {
+    // 1. Ручной оверрайд из localStorage (если пользователь указал свой IP/хост в настройках)
+    try {
+      const saved = localStorage.getItem('custom_server_url');
+      if (saved && saved.startsWith('http')) {
+        return saved.replace(/\/+$/, '');
+      }
+    } catch {}
+
+    // 2. В нативном приложении на телефоне (Android APK) — всегда используем живой сервер
+    if (Capacitor.isNativePlatform() || (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) {
+      return 'https://desktop-l0vajok.tail834d62.ts.net';
+    }
+
     const host = window.location.hostname;
+
+    // 3. Если открыто через публичный HTTPS домен Tailscale в браузере
+    if (host && host.includes('ts.net')) {
+      return `https://${host}`;
+    }
+
+    // 4. Если открыто локально на ПК разработчика
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:4000';
     }
+
+    // 5. Если открыто по сетевому IP
     if (host) {
       return `http://${host}:4000`;
     }
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  return process.env.NEXT_PUBLIC_API_URL || 'https://desktop-l0vajok.tail834d62.ts.net';
 };
 
 export const customApiUrl = resolveApiUrl();
@@ -243,11 +266,11 @@ export const api = {
             LocalStore.set('app_user', user);
             return user;
           }
-          if (!res.ok && res.error && cleanLogin !== 'admin') {
+          if (!res.ok && res.error && cleanLogin !== 'admin' && cleanLogin !== 'user') {
             throw new Error(res.error);
           }
         } catch (e) {
-          if (cleanLogin !== 'admin') {
+          if (cleanLogin !== 'admin' && cleanLogin !== 'user') {
             throw e;
           }
         }
@@ -266,6 +289,21 @@ export const api = {
         LocalStore.set('app_token', 'admin-fallback-token');
         LocalStore.set('app_user', adminUser);
         return adminUser;
+      }
+
+      // Гарантированный тестовый аккаунт user / user
+      if (cleanLogin === 'user' && pass === 'user') {
+        const testUser: User = {
+          id: '13',
+          name: 'user',
+          username: 'user',
+          email: 'user@test.local',
+          role: 'user',
+          token: 'user-test-token',
+        };
+        LocalStore.set('app_token', 'user-test-token');
+        LocalStore.set('app_user', testUser);
+        return testUser;
       }
 
       // 2. Supabase
